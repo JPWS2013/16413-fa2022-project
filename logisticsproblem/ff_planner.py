@@ -96,5 +96,7 @@ for goal in parser.positive_goals:
 
 grounded_actions = ground_actions(parser)
 
+for action in grounded_actions:
+	print(action)
 
-heuristic_value = calculate_heuristic_value(parser.state, parser, grounded_actions)
+# heuristic_value = calculate_heuristic_value(parser.state, parser, grounded_actions)
