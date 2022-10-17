@@ -9,7 +9,7 @@
   (:init
     (itemat sugar_box0 ur_burner)
     (free sugar_box0)
-    (itemat potted_meat_can right_counter)
+    (itemat potted_meat_can1 right_counter)
     (free potted_meat_can1)
     (closed indigo_drawer_top)
     (empty a)
@@ -17,5 +17,5 @@
     (openable indigo_drawer_top) 
   )
   
-  (:goal (and (itemat potted_meat_can1 indigo_drawer_top) (sugar_box0 left_counter) (closed indigo_drawer_top) (free sugar_box0) (free potted_meat_can1)))
+  (:goal (and (itemat potted_meat_can1 indigo_drawer_top) (itemat sugar_box0 left_counter) (closed indigo_drawer_top) (free sugar_box0) (free potted_meat_can1)))
 )

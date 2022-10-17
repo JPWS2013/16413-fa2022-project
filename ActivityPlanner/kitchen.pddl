@@ -19,32 +19,32 @@
   )
   
   (:action open
-    :parameters (?a - arm ?l - location ?a - robot)
-    :precondition (and (armat ?a - arm ?l - location) (openable ?l - location) (empty ?a - arm))
-    :effect (and (opened ?l - location) (not (closed ?l - location)))
+    :parameters (?a - arm ?l - location)
+    :precondition (and (armat ?a ?l) (openable ?l) (empty ?a))
+    :effect (and (opened ?l) (not (closed ?l)))
   )
   
   (:action close
-    :parameters (?a - arm ?l - location ?a - robot)
-    :precondition (and (armat ?a - arm ?l - location) (openable ?l - location) (empty ?a - arm))
-    :effect (and (closed ?l - location) (not (opened ?l - location)))
+    :parameters (?a - arm ?l - location)
+    :precondition (and (armat ?a ?l) (openable ?l) (empty ?a))
+    :effect (and (closed ?l) (not (opened ?l)))
   )
   
   (:action grip
     :parameters (?a - arm ?i - item ?l - location)
-    :precondition (and (empty ?a - arm) (free ?i - item) (armat ?a - arm ?l - location) (itemat ?i - item ?l - location)) ; Might need to check if location is opened first before gripping (e.g. if we're taking something out of a drawer)
-    :effect (and (gripped ?i - item) (not (itemat ?i - item ?l - location)) (not (free ?i - item)) (not (empty ?a - arm)) )
+    :precondition (and (empty ?a) (free ?i) (armat ?a ?l) (itemat ?i ?l)) ; Might need to check if location is opened first before gripping (e.g. if we're taking something out of a drawer)
+    :effect (and (gripped ?i) (not (itemat ?i ?l)) (not (free ?i)) (not (empty ?a)) )
   )
   
   (:action release
     :parameters (?a - arm ?i - item ?l - location)
-    :precondition (and (gripped ?i - item) (armat ?a - arm ?l - location))
-    :effect (and (free ?i - item) (itemat ?i - item ?l location) (empty ?a - arm) (not (gripped ?i - item)) )
+    :precondition (and (gripped ?i) (armat ?a ?l))
+    :effect (and (free ?i) (itemat ?i ?l) (empty ?a) (not (gripped ?i)) )
   )
   
   (:action move
     :parameters (?a - arm ?src - location ?dest - location)
-    :precondition (and (armat ?a - arm ?src - location))
-    :effect (and (armat ?a - arm ?dest - location) (not(armat ?a - arm ?src - location)) )
+    :precondition (and (armat ?a ?src))
+    :effect (and (armat ?a ?dest) (not(armat ?a ?src)) )
   )
  )
