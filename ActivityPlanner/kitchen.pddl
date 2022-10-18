@@ -26,7 +26,7 @@
   
   (:action close
     :parameters (?a - arm ?l - location)
-    :precondition (and (armat ?a ?l) (openable ?l) (empty ?a))
+    :precondition (and (armat ?a ?l) (openable ?l) (empty ?a) (opened ?l))
     :effect (and (closed ?l) (not (opened ?l)))
   )
   
