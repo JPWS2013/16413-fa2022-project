@@ -71,12 +71,13 @@ def compute_rpg(current_state, parser, grounded_actions):
 		fact_action_map = dict()
 		for action in next_action_layer:
 			for fact in action.add_effects:
-				
-				if fact not in fact_action_map.keys():
-					fact_action_map[fact]=[action]
+				#If fact is not already present in previous layer (i.e. a new fact is generated)
+				if fact not in layers["Fact"+str(iteration_counter-1)][0]:
+					if fact not in fact_action_map.keys():
+						fact_action_map[fact]=[action]
 
-				else:
-					fact_action_map[fact].append(action)
+					else:
+						fact_action_map[fact].append(action)
 
 			fact_set = fact_set.union(action.add_effects)
 
@@ -88,6 +89,12 @@ def compute_rpg(current_state, parser, grounded_actions):
 
 		layers["Fact"+str(iteration_counter)]=(deepcopy(fact_set), deepcopy(fact_action_map))
 
+		# print("Fact set: ")
+		# print(fact_set)
+
+		# print("Keys in fact_action_map: ")
+		# print(fact_action_map.keys())
+		# break
 	# 	# layers.append(deepcopy(fact_set))
 
 	# 	# print(layers)
@@ -104,7 +111,7 @@ def compute_heuristic(current_state, parser, rpg):
 	layers_t = list(rpg.keys())
 	layers_t.reverse()
 	# print(layers_t)
-	useable_facts = parser.positive_goals
+	useable_facts = set(parser.positive_goals)
 	counter = 0
 
 	counted_actions = []
@@ -114,27 +121,36 @@ def compute_heuristic(current_state, parser, rpg):
 
 		if 'Fact' in layer:
 			actions_in_layer = []
+			found_facts = set()
 			for fact in useable_facts:
+				
+				if fact in rpg[layer][1].keys():
+					found_facts.add(fact)
+					action_list = rpg[layer][1][fact]
 
-				action_list = rpg[layer][1][fact]
+					actions_in_layer = actions_in_layer + action_list
 
-				actions_in_layer = actions_in_layer + action_list
+					print("procesing fact: ", fact)
 
-				print("procesing fact: ", fact)
+					print('Associated actions: ')
+					for action in action_list:
+						print(action)
 
-				print('Associated actions: ')
-				for action in action_list:
-					print(action)
+			useable_facts=useable_facts-found_facts
 			counted_actions = counted_actions + actions_in_layer
+
+			print("Remaining facts in useable_facts: ")
+			print(useable_facts)
 
 			# for action in counted_actions:
 			# 	print(action)
 		else:
-			useable_facts = set()
+			# useable_facts = set()
 
 			# print(actions_in_layer)
 
 			for action in actions_in_layer:
+				print("Adding precondition: ")
 				print(action.positive_preconditions)
 				useable_facts = useable_facts.union(set(action.positive_preconditions))
 
@@ -143,8 +159,12 @@ def compute_heuristic(current_state, parser, rpg):
 
 		print("===========================")
 
-		if counter >=3:
+		if counter >=7:
 			break
+	print("Number of counted actionss (heuristic value): %i"%len(counted_actions))
+	print("Counted actions: ")
+	for action in counted_actions:
+		print(action)
 
 
 
