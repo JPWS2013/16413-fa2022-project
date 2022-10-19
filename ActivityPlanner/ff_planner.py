@@ -192,7 +192,7 @@ grounded_actions = ground_actions(parser)
 
 print('===============')
 
-write_action_file(grounded_actions, 'grounded_actions_kitchen.txt')
+# write_action_file(grounded_actions, 'grounded_actions_kitchen.txt')
 
 # for action in grounded_actions:
 # 	print(action.name)
