@@ -1,6 +1,7 @@
 from pddl_parser.PDDL import PDDL_Parser
 from copy import deepcopy
 from collections import OrderedDict
+import time
 
 
 def write_action_file(action_list, filename):
@@ -106,7 +107,7 @@ def compute_rpg(current_state, parser, grounded_actions):
 
 	return layers
 
-def compute_heuristic(current_state, parser, rpg):
+def compute_heuristic(current_state, parser, rpg, verbosity=0, show_final_actions=False):
 
 	layers_t = list(rpg.keys())
 	layers_t.reverse()
@@ -117,7 +118,9 @@ def compute_heuristic(current_state, parser, rpg):
 	counted_actions = []
 	for layer in layers_t:
 		counter += 1
-		print("Processing layer: ", layer)
+		
+		if verbosity==1:
+			print("Processing layer: ", layer)
 
 		if 'Fact' in layer:
 			actions_in_layer = []
@@ -130,17 +133,20 @@ def compute_heuristic(current_state, parser, rpg):
 
 					actions_in_layer = actions_in_layer + action_list
 
-					print("procesing fact: ", fact)
+					if verbosity==1:
+						print("procesing fact: ", fact)
 
-					print('Associated actions: ')
-					for action in action_list:
-						print(action)
+					if verbosity==2:
+						print('Associated actions: ')
+						for action in action_list:
+							print(action)
 
 			useable_facts=useable_facts-found_facts
 			counted_actions = counted_actions + actions_in_layer
 
-			print("Remaining facts in useable_facts: ")
-			print(useable_facts)
+			if verbosity==1:
+				print("Remaining facts in useable_facts: ")
+				print(useable_facts)
 
 			# for action in counted_actions:
 			# 	print(action)
@@ -150,28 +156,28 @@ def compute_heuristic(current_state, parser, rpg):
 			# print(actions_in_layer)
 
 			for action in actions_in_layer:
-				print("Adding precondition: ")
-				print(action.positive_preconditions)
+
+				if verbosity==2:
+					print("Adding precondition: ")
+					print(action.positive_preconditions)
+				
 				useable_facts = useable_facts.union(set(action.positive_preconditions))
 
-			print("Useable facts: ")
-			print(useable_facts)
+			if verbosity==1:
+				print("Useable facts: ")
+				print(useable_facts)
 
-		print("===========================")
+		if verbosity==1:
+			print("===========================")
 
 		if counter >=7:
 			break
 	print("Number of counted actionss (heuristic value): %i"%len(counted_actions))
-	print("Counted actions: ")
-	for action in counted_actions:
-		print(action)
-
-
-
-
-
-
-
+	
+	if verbosity==2 or show_final_actions==True:
+		print("Counted actions: ")
+		for action in counted_actions:
+			print(action)
 
 
 
@@ -190,16 +196,22 @@ for goal in parser.positive_goals:
 
 grounded_actions = ground_actions(parser)
 
-print('===============')
+print("===========================")
 
 # write_action_file(grounded_actions, 'grounded_actions_kitchen.txt')
 
 # for action in grounded_actions:
 # 	print(action.name)
 
+start_time = time.time()
+
 rpg = compute_rpg(parser.state, parser, grounded_actions)
 
 heuristic_val = compute_heuristic(parser.state, parser, rpg)
+
+plan_duration = time.time() - start_time
+
+print("Total plannning time: %f seconds"%plan_duration)
 
 # fact_set, fact_action_map = rpg["Fact2"]
 
