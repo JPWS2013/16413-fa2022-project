@@ -172,7 +172,9 @@ def compute_heuristic(current_state, parser, rpg, verbosity=0, show_final_action
 
 		if counter >=7:
 			break
-	print("Number of counted actionss (heuristic value): %i"%len(counted_actions))
+	
+	if verbosity==1:
+		print("Number of counted actionss (heuristic value): %i"%len(counted_actions))
 	
 	if verbosity==2 or show_final_actions==True:
 		print("Counted actions: ")
