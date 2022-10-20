@@ -36,7 +36,13 @@
     :effect (and (gripped ?i) (not (itemat ?i ?l)) (not (free ?i)) (not (empty ?a)) )
   )
   
-  (:action release
+  (:action placein
+    :parameters (?a - arm ?i - item ?l - location)
+    :precondition (and (gripped ?i) (armat ?a ?l) (opened(?l)))
+    :effect (and (free ?i) (itemat ?i ?l) (empty ?a) (not (gripped ?i)) )
+  )
+
+  (:action placeon
     :parameters (?a - arm ?i - item ?l - location)
     :precondition (and (gripped ?i) (armat ?a ?l))
     :effect (and (free ?i) (itemat ?i ?l) (empty ?a) (not (gripped ?i)) )
