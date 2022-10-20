@@ -14,6 +14,7 @@
     (gripped ?i - item)
     (free ?i - item)
     (itemat ?i - item ?l - location)
+    (itemin ?i - item ?l - location)
     (armat ?a - arm ?l - location)
     (empty ?a - arm)
   )
@@ -32,14 +33,14 @@
   
   (:action grip
     :parameters (?a - arm ?i - item ?l - location)
-    :precondition (and (empty ?a) (free ?i) (armat ?a ?l) (itemat ?i ?l)) ; Might need to check if location is opened first before gripping (e.g. if we're taking something out of a drawer)
+    :precondition (and (empty ?a) (free ?i) (armat ?a ?l) (itemat ?i ?l) ) ; Might need to check if location is opened first before gripping (e.g. if we're taking something out of a drawer)
     :effect (and (gripped ?i) (not (itemat ?i ?l)) (not (free ?i)) (not (empty ?a)) )
   )
   
   (:action placein
     :parameters (?a - arm ?i - item ?l - location)
-    :precondition (and (gripped ?i) (armat ?a ?l) (opened(?l)))
-    :effect (and (free ?i) (itemat ?i ?l) (empty ?a) (not (gripped ?i)) )
+    :precondition (and (gripped ?i) (armat ?a ?l) (opened ?l))
+    :effect (and (free ?i) (itemat ?i ?l) (itemin ?i ?l) (empty ?a) (not (gripped ?i)) )
   )
 
   (:action placeon

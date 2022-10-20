@@ -17,5 +17,5 @@
     (openable indigo_drawer_top) 
   )
   
-  (:goal (and (itemat potted_meat_can1 indigo_drawer_top) (itemat sugar_box0 left_counter) (closed indigo_drawer_top))) ;(free sugar_box0) (free potted_meat_can1)))
+  (:goal (and (itemin potted_meat_can1 indigo_drawer_top) (itemat sugar_box0 left_counter) (closed indigo_drawer_top))) ;(free sugar_box0) (free potted_meat_can1)))
 )
