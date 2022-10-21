@@ -1,6 +1,6 @@
-21OCT22 Update:
+## 21OCT22 Update ##
 
-Domain Assumptions:
+### Domain Assumptions ###
 
 We have the following types in our domain:
 
@@ -32,11 +32,11 @@ We have the following actions in our domain:
 - move: This moves the arm from one location to another. The arm must be in the start location. It causes the arm to be at the end location and not at the start location.
 
 
-Plan Generation:
+### Plan Generation ###
 
 We start with an initial fact layer. We expand our actions in the action layer which have their preconditions satisfied by our current fact layer. We then use the action layer to generate new facts from the effects of the actions in the action layer. We then do a union of the new facts with the previous fact layer in order to carry over new facts and facts resulting from no-op. We carry out this process until the goal appears in our fact layer. To keep track of the connections between facts and actions, at each fact layer we create a dictionary. The keys in the dictionary are made up of the facts in the layer while the entries associated with each key are the actions that the fact resulted from. Critically, this is only carried out for facts that were not in the previous fact layer i.e. not facts that were carried over by the no-op. Using this strategy we can follow the RPG backwards from a fact in order to count actions for the fast forward heuristic value. We then use the heuristic value to inform an Enforced Hill Climb algorithm. At each action selection we look for a state with a decreasing heuristic value. If we cannot find a decreasing heuristic value, BFS is used to determine the next action.
 
 
-Challenges Faced:
+### Challenges Faced ###
 
 Previously we were also creating connections to facts that were carried over by the no-op. This was causing us to have way to many fact to action connections as we worked backward through the RPG. This resulted in our fast forward heuristic value being way to high for any given fact. 
