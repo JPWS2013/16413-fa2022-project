@@ -328,7 +328,7 @@ if __name__ == '__main__':
 
     start_time = time.time()
 
-    rpg = compute_rpg(parser.state, parser, grounded_actions)
+    # rpg = compute_rpg(parser.state, parser, grounded_actions)
 
     # heuristic_val = compute_heuristic(parser.state, parser, rpg)
     selected_actions = enforced_hill_climb(parser.state, parser, grounded_actions)
