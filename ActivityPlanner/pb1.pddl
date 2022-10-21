@@ -15,6 +15,12 @@
     (empty a)
     (armat a start_pos)
     (openable indigo_drawer_top) 
+    (surface left_counter)
+    ;(surface right_counter)
+    ;(surface ul_burner)
+    ;(surface ur_burner)
+    ;(surface ll_burner)
+    ;(surface lr_burner)
   )
   
   (:goal (and (itemin potted_meat_can1 indigo_drawer_top) (itemat sugar_box0 left_counter) (closed indigo_drawer_top))) ;(free sugar_box0) (free potted_meat_can1)))

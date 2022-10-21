@@ -17,6 +17,7 @@
     (itemin ?i - item ?l - location)
     (armat ?a - arm ?l - location)
     (empty ?a - arm)
+    (surface ?l - location)
   )
   
   (:action open
@@ -45,7 +46,7 @@
 
   (:action placeon
     :parameters (?a - arm ?i - item ?l - location)
-    :precondition (and (gripped ?i) (armat ?a ?l))
+    :precondition (and (gripped ?i) (armat ?a ?l) (surface ?l))
     :effect (and (free ?i) (itemat ?i ?l) (empty ?a) (not (gripped ?i)) )
   )
   
