@@ -50,7 +50,7 @@ def compute_rpg(current_state, parser, grounded_actions):
         # print(layers["Action1"])
         # break
 
-        layers["Action"+str(iteration_counter)]=deepcopy(next_action_layer)
+        layers["Action"+str(iteration_counter)]=next_action_layer
 
         iteration_counter +=1
 
@@ -73,7 +73,7 @@ def compute_rpg(current_state, parser, grounded_actions):
         # write_action_file(fact_set, ('Fact Layer '+str(iteration_counter)))
 
 
-        layers["Fact"+str(iteration_counter)]=(deepcopy(fact_set), deepcopy(fact_action_map))
+        layers["Fact"+str(iteration_counter)]=(deepcopy(fact_set), fact_action_map)
 
         # print("Fact set: ")
         # print(fact_set)
