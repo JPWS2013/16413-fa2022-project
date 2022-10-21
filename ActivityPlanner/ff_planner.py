@@ -107,7 +107,7 @@ def compute_rpg(current_state, parser, grounded_actions):
 
 	return layers
 
-def compute_heuristic(current_state, parser, rpg, verbosity=0, show_final_actions=False):
+def extract_heuristic(current_state, parser, rpg, verbosity=0, show_final_actions=False):
 
 	layers_t = list(rpg.keys())
 	layers_t.reverse()
@@ -119,7 +119,7 @@ def compute_heuristic(current_state, parser, rpg, verbosity=0, show_final_action
 	for layer in layers_t:
 		counter += 1
 		
-		if verbosity==1:
+		if verbosity>=1:
 			print("Processing layer: ", layer)
 
 		if 'Fact' in layer:
@@ -133,7 +133,7 @@ def compute_heuristic(current_state, parser, rpg, verbosity=0, show_final_action
 
 					actions_in_layer = actions_in_layer + action_list
 
-					if verbosity==1:
+					if verbosity>=1:
 						print("procesing fact: ", fact)
 
 					if verbosity==2:
@@ -144,7 +144,7 @@ def compute_heuristic(current_state, parser, rpg, verbosity=0, show_final_action
 			useable_facts=useable_facts-found_facts
 			counted_actions = counted_actions + actions_in_layer
 
-			if verbosity==1:
+			if verbosity>=1:
 				print("Remaining facts in useable_facts: ")
 				print(useable_facts)
 
@@ -163,17 +163,17 @@ def compute_heuristic(current_state, parser, rpg, verbosity=0, show_final_action
 				
 				useable_facts = useable_facts.union(set(action.positive_preconditions))
 
-			if verbosity==1:
+			if verbosity>=1:
 				print("Useable facts: ")
 				print(useable_facts)
 
-		if verbosity==1:
+		if verbosity>=1:
 			print("===========================")
 
 		if counter >=7:
 			break
 	
-	if verbosity==1:
+	if verbosity>=1:
 		print("Number of counted actionss (heuristic value): %i"%len(counted_actions))
 	
 	if verbosity==2 or show_final_actions==True:
@@ -181,6 +181,84 @@ def compute_heuristic(current_state, parser, rpg, verbosity=0, show_final_action
 		for action in counted_actions:
 			print(action)
 
+	return len(counted_actions)
+
+def calculate_heuristic(state, parser, grounded_actions):
+	rpg = compute_rpg(state, parser, grounded_actions)
+
+	return extract_heuristic(state, parser, rpg)
+
+def expand_state(current_state, grounded_actions, h_func, ignore_deletes=False):
+	possible_next_states = []
+
+	for action in grounded_actions:
+		if applicable(current_state, action.positive_preconditions):
+
+			# print("Processing action: ", action.name, action.parameters)
+			
+			next_state=deepcopy(current_state) #Make a copy of the current state so you can manipulate it
+			next_state = next_state.union(action.add_effects) #Add the add effects
+
+			if not ignore_deletes:
+				next_state = next_state - action.del_effects #Remove the delete effects
+
+			# print("Current facts in next_state: ", next_state)
+			
+			h_val=h_func(next_state, parser, grounded_actions)
+
+			print("For action: ", action.name, action.parameters, ", h value is ", h_val)
+
+			# print("Heuristic value for this next state: ", h_val)
+
+			possible_next_states.append((h_val, action, next_state))
+
+	return possible_next_states
+
+def enforced_hill_climb(current_state, parser, grounded_actions):
+
+	selected_actions=[]
+	iteration_counter = 0
+	current_h_val = calculate_heuristic(current_state, parser, grounded_actions)
+
+	while not parser.positive_goals.issubset(current_state):
+
+		iteration_counter+=1
+
+		print("======================================")
+		print("Looking for next action for current state:")
+		for prop in current_state:
+			print(prop)
+		print("Current h value: ", current_h_val)
+		print("")
+
+		possible_next_states = expand_state(current_state, grounded_actions, calculate_heuristic)
+
+		h_vals_t, actions_t, next_states_t = zip(*possible_next_states)
+
+		if min(h_vals_t) == current_h_val:
+			search_mode = "equal"
+		elif min(h_vals_t) < current_h_val:
+			search_mode = "lessthan"
+		else:
+			print('ERROR! H VALUE IS INCREASING!!!')
+
+		for h_val, action, next_state in possible_next_states:
+			print(action.name, action.parameters, " has value: ", h_val)
+			if (search_mode == 'equal' and h_val==current_h_val) or (search_mode == 'lessthan' and h_val < current_h_val):
+				print(action.name, action.parameters, " has a better h value!")
+				best_action = action
+				best_next_state = next_state
+				current_h_val = h_val
+				break
+
+		print("Selected action: ", best_action.name, best_action.parameters)
+		selected_actions.append(best_action)
+		current_state = best_next_state
+
+		if iteration_counter >=15:
+			break
+
+	return selected_actions
 
 
 parser = PDDL_Parser()
@@ -209,9 +287,14 @@ start_time = time.time()
 
 rpg = compute_rpg(parser.state, parser, grounded_actions)
 
-heuristic_val = compute_heuristic(parser.state, parser, rpg)
+# heuristic_val = compute_heuristic(parser.state, parser, rpg)
+selected_actions = enforced_hill_climb(parser.state, parser, grounded_actions)
 
 plan_duration = time.time() - start_time
+
+print("Plan: ")
+for action in selected_actions:
+	print(action.name, action.parameters)
 
 print("Total plannning time: %f seconds"%plan_duration)
 
