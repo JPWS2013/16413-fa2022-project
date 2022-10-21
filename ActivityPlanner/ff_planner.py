@@ -292,7 +292,10 @@ selected_actions = enforced_hill_climb(parser.state, parser, grounded_actions)
 
 plan_duration = time.time() - start_time
 
-print("Plan: ")
+print("------------------------------------------------------------")
+print("------------------------------------------------------------")
+print("")
+print("Final Plan: ")
 for action in selected_actions:
 	print(action.name, action.parameters)
 
