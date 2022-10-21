@@ -181,7 +181,7 @@ def expand_state(current_state, grounded_actions, h_func, ignore_deletes=False, 
 
             # print("Processing action: ", action.name, action.parameters)
             
-            next_state=deepcopy(current_state) #Make a copy of the current state so you can manipulate it
+            next_state=current_state #Make a copy of the current state so you can manipulate it
             next_state = next_state.union(action.add_effects) #Add the add effects
 
             if not ignore_deletes:
