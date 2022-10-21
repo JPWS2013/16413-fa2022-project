@@ -4,11 +4,7 @@ from collections import OrderedDict
 import time
 
 
-def write_action_file(action_list, filename):
-    with open(filename, 'w') as fp:
-        for item in action_list:
-            # write each item on a new line
-            fp.write("%s\n" % item)
+
 
 def ground_actions(parser):
     
@@ -16,26 +12,15 @@ def ground_actions(parser):
 
     for action in parser.actions:
         for act in action.groundify(parser.objects, parser.types):
-            # print("parameters[0]")
-            # print(act.parameters[0])
-            # print("parameters[1]")
-            # print(act.parameters[1])
 
+            # This if statement prevents "no-op"-like behavior for actions like move
             if len(act.parameters) == len(set(act.parameters)):
                 grounded_actions.append(act)
-
-            # THis if statement prevents "no-ops" for actions like move
-            # if act.parameters[0] != act.parameters[1]:
-                
-
 
     return grounded_actions
 
 def applicable(state, positive):
     return positive.issubset(state)
-
-def apply(state, positive):
-    return state.union(positive)
 
 def compute_rpg(current_state, parser, grounded_actions):
 
