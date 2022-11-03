@@ -1,19 +1,22 @@
+from ipaddress import collapse_addresses
 import numpy as np
 from scipy.spatial import KDTree
 
 class TreeNode(object):
-    def __init__(self, pos, parent=None):
+    def __init__(self, pos, cost, parent=None):
         self.parent = parent
         self.pos = pos
+        self.cost = cost
 
 class MotionPlanner:
-    def __init__(self, world, action_map, location_map, iterations):
+    def __init__(self, world, action_map, location_map, iterations, d, goal_int):
         self.world = world
         self.initial_pos = getinitialpos()
         self.action_map = action_map
         self.location_map = location_map
         self.iterations = iterations
         self.d = d
+        self.goal_int = goal_int
 
     # Create a function to find the distance between two points
     def dist(a, b):
@@ -54,44 +57,48 @@ class MotionPlanner:
         def fn():
             return tuple(next(generator))
         return fn
+    
+    def connect_path(near_list, x_min, c_min, x_new)
+        for node in near_list:
+            if (collison_free(node, x_new)) and (node.cost + c(node, x_new) < c_min)
+                x_min = node
+                cmin = node.cost + c(node, x_new)
+        return (x_min, c_min)
+
+    def rewire(G, X_near, x_new)
+
+    def c(start, end)
+
+    def collision_free(a, b)
+
+    def obst_free(a, b)
+
+    def retrive_path(G, end_pos)
+
+    def in_end_region(x_new)
 
     def solve(start_pos, end_pos):
         V = [self.initial_pos] # Create a list of node positions
-        G = [TreeNode(start_pose, None)] # Create a list of TreeNode objects
+        G = [TreeNode(start_pos, cost, None)] # Create a list of TreeNode objects
         found = 0 # Variable to keep track of if we've made it to the goal
         for i in range(self.iterations): # Iterate
-            if i % 20 == 0: # Every 20 iterations take the random sample from inside the goal area (goal biasing)
+            if i % self.goal_int == 0: # Every 20 iterations take the random sample from inside the goal area (goal biasing)
                 x_rand = getsamplefunc(goal)
             else: # Else take the random sample from somewhere in the operating area
-                x_rand = gen_point(bounds)
-            
+                x_rand = getsamplefunc(general_area)
             x_nearest = get_nearest(x_rand)
-
             x_new = steer(x_rand, x_nearest, self.d) # Use the stter function to make x_new's position
-            # Create a line and check if we hit anything
-            start = x_nearest
-            end = x_new
-            start_pose_buff = Point(start).buffer(radius, resolution=3)
-            end_pose_buff = Point(end).buffer(radius, resolution=3)
-            line = LineString([start, end])
-            expanded_line = line.buffer(radius, resolution=3)
-            clear = 1;
-            for obs in environment.obstacles:
-                if expanded_line.intersects(obs) or obs.contains(Point(x_new)):
-                    clear = 0
-            if clear and (x_new not in V): # If we don't hit anything
-                V.append(x_new) # Add x_new to our node list
-                G.append(TreeNode(x_new, x_nearest)) # Create a new TreeNode object recording the new node and its parent
-                if end_region.contains(Point(x_new)): # If goal is reached
-                    current_pos = x_new
-                    path = [current_pos]
-                    # Walk backward from the goal using parents to get back to the start. This gives the path.
-                    while current_pos != start_pose:  
-                        for ver in G:
-                            if ver.pos == current_pos:
-                                current_pos = ver.parent
-                                break
-                        path.insert(0, current_pos) # Build the path list
-                    found = 1 # We found the goal
-                    break # Break when we've created our path
+            if ObtacleFree(xnearest, xnew):
+                X_near = self.near(G = (V, E), xnew, min{gamma_RRG*(log(card V)/ card V)^(1/d), nu}) ;
+                V.append(x_new)
+                x_min = xnearest
+                c_min = x_nearest.cost + self.c(xnearest, xnew)
+                (x_min, c_min) = self.connect_path(X_near, x_min, c_min)
+                G.append(TreeNode(x_new, c_min, x_min))
+                G = self.rewire(G, X_near, x_new)
+
+                if self.in_end_region(x_new): # If goal is reached
+                    path = self.retrive_path(G, end_pos)   
+        return path
+            
 
