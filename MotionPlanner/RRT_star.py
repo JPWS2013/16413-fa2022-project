@@ -1,4 +1,5 @@
 import numpy as np
+from scipy.spatial import KDTree
 
 class TreeNode(object):
     def __init__(self, pos, parent=None):
@@ -31,6 +32,21 @@ class MotionPlanner:
             x_new = (scaled_diff[0]+b[0], scaled_diff[1]+b[1])
         return x_new
 
+    def get_nearest_node(self, point):
+        """
+        Uses scipy's KD Tree implementation to get the nearest node to the point
+
+        Inputs:
+            point: (x,y) tuple representing the point for which nearest neighbor must be found
+        Returns:
+            The (x,y) tuple of the nearest point in the tree
+        """
+        points = np.array(list(self._nodes.keys()))
+        kdtree = KDTree(points)
+
+        d,i = kdtree.query(point, k=1)
+
+        return tuple(points[i])
         
     def get_sample_fn(body, joints, custom_limits={}, **kwargs):
         lower_limits, upper_limits = get_custom_limits(body, joints, custom_limits, circular_limits=CIRCULAR_LIMITS)
@@ -48,13 +64,9 @@ class MotionPlanner:
                 x_rand = getsamplefunc(goal)
             else: # Else take the random sample from somewhere in the operating area
                 x_rand = gen_point(bounds)
-            closest_dist = float('inf') # Initialize closest distance to infinity
-            for ver in V: # For each node
-                # Find the closest node to x_rand
-                dist_to_rand = dist(ver, x_rand)
-                if dist_to_rand < closest_dist:
-                    closest_dist = dist_to_rand
-                    x_nearest = ver
+            
+            x_nearest = get_nearest(x_rand)
+
             x_new = steer(x_rand, x_nearest, self.d) # Use the stter function to make x_new's position
             # Create a line and check if we hit anything
             start = x_nearest
