@@ -55,7 +55,7 @@ class MotionPlanner:
             return tuple(next(generator))
         return fn
 
-    def solve(self):
+    def solve(start_pos, end_pos):
         V = [self.initial_pos] # Create a list of node positions
         G = [TreeNode(start_pose, None)] # Create a list of TreeNode objects
         found = 0 # Variable to keep track of if we've made it to the goal

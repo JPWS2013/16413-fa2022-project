@@ -42,3 +42,9 @@ We start with an initial fact layer. We expand our actions in the action layer w
 ### Challenges Faced ###
 
 Previously we were also creating connections to facts that were carried over by the no-op. This was causing us to have way to many fact to action connections as we worked backward through the RPG. This resulted in our fast forward heuristic value being way to high for any given fact. 
+
+## 18NOV22 Update ##
+
+### Files and Motion Planner Implemented ###
+
+For our motion planner we decided to use RRT* with goal biasing. This planner takes in a set of actions generated from the 
