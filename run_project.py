@@ -13,9 +13,9 @@ class ExecutionEngine():
         act_plan = get_activity_plan(problem_file, domain_file)
 
         for action in act_plan:
-            
-            motion_plan = mp.get_motion_plan(action)
-            execute(motion_plan)
+            start_pos, end_pos = get_positions()
+            motion_plan = self.mp.solve(start_pos, end_pos)
+            self.execute(motion_plan)
 
 
     def init_parser(problem_file, domain_file):
@@ -30,6 +30,9 @@ class ExecutionEngine():
         return world
 
     def generate_map():
+        pass
+
+    def execute(motion_plan):
         pass
 
 if __name__ == "__main__":
