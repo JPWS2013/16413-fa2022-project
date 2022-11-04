@@ -173,7 +173,7 @@ def calculate_heuristic(state, parser, grounded_actions):
 
     return extract_heuristic(state, parser, rpg)
 
-def expand_state(current_state, grounded_actions, h_func, ignore_deletes=False, print_actions=False):
+def expand_state(parser, current_state, grounded_actions, h_func, ignore_deletes=False, print_actions=False):
     possible_next_states = []
 
     for action in grounded_actions:
@@ -228,7 +228,7 @@ def resolve_plateau(possible_next_states, current_h_val, parser, grounded_action
             final_state = state
             break
         
-        child_states = expand_state(state, grounded_actions, calculate_heuristic) #Get all the child states 
+        child_states = expand_state(parser, state, grounded_actions, calculate_heuristic) #Get all the child states 
         
         for next_h_val, next_action, next_state in child_states:
             if next_state not in visited_t: #Check to see if the child node has been visited before
@@ -258,7 +258,7 @@ def enforced_hill_climb(current_state, parser, grounded_actions):
         print("Current h value: ", current_h_val)
         print("")
 
-        possible_next_states = expand_state(current_state, grounded_actions, calculate_heuristic, print_actions=True)
+        possible_next_states = expand_state(parser, current_state, grounded_actions, calculate_heuristic, print_actions=True)
 
         h_vals_t, actions_t, next_states_t = zip(*possible_next_states)
 
