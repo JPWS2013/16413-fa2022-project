@@ -12,7 +12,8 @@ from src.utils import JOINT_TEMPLATE, BLOCK_SIZES, BLOCK_COLORS, COUNTERS, \
 
 from pybullet_tools.utils import set_pose, Pose, Point, Euler, multiply, get_pose, get_point, create_box, set_all_static, WorldSaver, create_plane, COLOR_FROM_NAME, stable_z_on_aabb, pairwise_collision, elapsed_time, get_aabb_extent, get_aabb, create_cylinder, set_point, get_function_name, wait_for_user, dump_world, set_random_seed, set_numpy_seed, get_random_seed, get_numpy_seed, set_camera, set_camera_pose, link_from_name, get_movable_joints, get_joint_name, CIRCULAR_LIMITS, get_custom_limits, set_joint_positions, interval_generator, get_link_pose, interpolate_poses, get_all_links, get_link_names, get_link_inertial_pose
 
-import MotionPlanner.RRT_star as mp
+# import MotionPlanner.RRT_star as mp
+import ActivityPlanner.ff_planner as ap
 
 UNIT_POSE2D = (0., 0., 0.)
 
@@ -27,14 +28,24 @@ class ExecutionEngine():
 
         # self.motion_planner = mp.MotionPlanner(world, self.action_map, self.location_map)
 
-    def run():
-        act_plan = get_activity_plan(problem_file, domain_file)
+    def end(self):
+        print("Destroying world object")
+        self.world.destroy()
 
-        for action in act_plan:
-            start_pos, end_pos = get_positions()
-            motion_plan = self.mp.solve(start_pos, end_pos)
-            self.execute(motion_plan)
+    def run(self):
+        act_plan = self.get_activity_plan()
 
+        for i, action in enumerate(act_plan):
+            print("Action ", i, ": ", action)
+            # start_pos, end_pos = get_positions()
+            # motion_plan = self.mp.solve(start_pos, end_pos)
+            # self.execute(motion_plan)
+
+    def get_activity_plan(self):
+        grounded_actions = ap.ground_actions(self.parser)
+        selected_actions = ap.enforced_hill_climb(self.parser.state, self.parser, grounded_actions)
+
+        return selected_actions
 
     def init_parser(self):
         parser = PDDL_Parser()
@@ -118,6 +129,11 @@ if __name__ == "__main__":
 
     engine = ExecutionEngine(problem_file, domain_file)
 
-    
+    try:
+        engine.run()
+        engine.end()
+    except Exception as e:
+        print(e)
+        engine.end()
 
     
