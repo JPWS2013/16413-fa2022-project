@@ -24,7 +24,7 @@ class ExecutionEngine():
         self.parser = self.init_parser()
         self.world = self.create_world()
 
-        self.location_map, self.action_map = self.generate_maps()
+        self.location_map = self.get_locations()
 
         # self.motion_planner = mp.MotionPlanner(world, self.action_map, self.location_map)
 
@@ -35,12 +35,29 @@ class ExecutionEngine():
     def run(self):
         act_plan = self.get_activity_plan()
 
-        for i, action in enumerate(act_plan):
-            print("Action ", i, ": ", action)
+        for action in act_plan:
+            self.execute_action(action)
             # start_pos, end_pos = get_positions()
             # motion_plan = self.mp.solve(start_pos, end_pos)
             # self.execute(motion_plan)
 
+    def execute_action(self, action):
+        print("Executing action: ", action.name, action.parameters[1:])
+
+        # match action.name:
+        #     parameters = action.parameters[1:]
+        #     case 'open':
+        #         self.world.open_door
+        #     case 'close':
+        #         self.world.close_door
+        #     case 'grip':
+        #         self.world.close_gripper
+        #     case 'placein' | 'placeon':
+        #         self.world.open_gripper
+            # case 'move':
+            #     action_map[action] = self.mp.solve
+
+    
     def get_activity_plan(self):
         grounded_actions = ap.ground_actions(self.parser)
         selected_actions = ap.enforced_hill_climb(self.parser.state, self.parser, grounded_actions)
@@ -83,7 +100,7 @@ class ExecutionEngine():
         set_pose(body, pose)
         return pose
     
-    def generate_maps(self):
+    def get_locations(self):
         locations = self.parser.objects['location']
         actions = [action.name for action in self.parser.actions]
 
@@ -104,20 +121,7 @@ class ExecutionEngine():
                 print("Error getting lcoordinates for the following link: ", e, " Exiting!")
                 sys.exit(1)
 
-        # Map the activities to the executable actions
-        for action in actions:
-            if action == 'open':
-                action_map[action] = self.world.open_door
-            elif action == 'close':
-                action_map[action] = self.world.close_door
-            elif action == 'grip':
-                action_map[action] = self.world.close_gripper
-            elif (action == 'placein') or (action == 'placeon'):
-                action_map[action] = self.world.open_gripper
-            # elif action == 'move':
-            #     action_map[action] = self.mp.solve
-
-        return location_map, action_map
+        return location_map
 
     def execute(motion_plan):
         pass
