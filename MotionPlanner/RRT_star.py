@@ -65,15 +65,26 @@ class MotionPlanner:
                 cmin = node.cost + c(node, x_new)
         return (x_min, c_min)
 
-    def rewire(G, X_near, x_new)
+    def rewire(G, X_near, x_new):
 
-    def c(start, end)
+    def c(start, end):
 
-    def collision_free(a, b)
+    def collision_free(a, b):
 
-    def obst_free(a, b)
+    def obst_free(a, b):
+        get_collision_data(body, link=BASE_LINK)
 
-    def retrive_path(G, end_pos)
+    def retrive_path(G, end_pos, start_pos, x_new):
+        current_pos = x_new
+        path = [current_pos]
+        while current_pos != start_pos:  
+                    for ver in G:
+                        if ver.pos == current_pos:
+                            current_pos = ver.parent
+                            break
+                    path.insert(0, current_pos) 
+        found = 1 
+        return (found, path)
 
     def in_end_region(x_new)
 
@@ -98,7 +109,10 @@ class MotionPlanner:
                 G = self.rewire(G, X_near, x_new)
 
                 if self.in_end_region(x_new): # If goal is reached
-                    path = self.retrive_path(G, end_pos)   
-        return path
+                    (found, path)= self.retrive_path(G, end_pos)   
+        if found:
+            return path
+        else:
+            print('No path found')
             
 
