@@ -3,13 +3,13 @@ import numpy as np
 from scipy.spatial import KDTree
 
 class TreeNode(object):
-    def __init__(self, pos, cost, parent=None):
+    def __init__(self, pos, cost=0, parent=None):
         self.parent = parent
         self.pos = pos
         self.cost = cost
 
 class MotionPlanner:
-    def __init__(self, world, action_map, location_map, iterations, d, goal_int):
+    def __init__(self, world, action_map, location_map, iterations, d, goal_int, goal_biasing=False, run_rrtstar=False):
         self.world = world
         self.initial_pos = getinitialpos()
         self.action_map = action_map
@@ -17,6 +17,8 @@ class MotionPlanner:
         self.iterations = iterations
         self.d = d
         self.goal_int = goal_int
+        self.goal_biasing = goal_biasing
+        self.run_rrtstar = run_rrtstar
 
     # Create a function to find the distance between two points
     def dist(self, a, b):
@@ -99,23 +101,32 @@ class MotionPlanner:
         G = [TreeNode(start_pos, cost, None)] # Create a list of TreeNode objects
         found = 0 # Variable to keep track of if we've made it to the goal
         for i in range(self.iterations): # Iterate
-            if i % self.goal_int == 0: # Every 20 iterations take the random sample from inside the goal area (goal biasing)
+            if (self.goal_biasing) and (i % self.goal_int == 0): # Every 20 iterations take the random sample from inside the goal area (goal biasing)
                 x_rand = get_sample_fn(sample_goal=True)
             else: # Else take the random sample from somewhere in the operating area
                 x_rand = get_sample_fn()
             x_nearest = get_nearest_node(x_rand)
             x_new = steer(x_rand, x_nearest, self.d) # Use the stter function to make x_new's position
-            if ObtacleFree(xnearest, xnew):
-                X_near = self.near(G = (V, E), xnew, min{gamma_RRG*(log(card V)/ card V)^(1/d), nu}) ;
-                V.append(x_new)
-                x_min = xnearest
-                c_min = x_nearest.cost + self.c(xnearest, xnew)
-                (x_min, c_min) = self.connect_path(X_near, x_min, c_min)
-                G.append(TreeNode(x_new, c_min, x_min))
-                G = self.rewire(G, X_near, x_new)
+            
+            #This runs rrt* instead of rrt
+            if self.run_rrtstar:
+                if ObstacleFree(xnearest, xnew):
+                    X_near = self.near(G = (V, E), xnew, min{gamma_RRG*(log(card V)/ card V)^(1/d), nu}) ;
+                    V.append(x_new)
+                    x_min = xnearest
+                    c_min = x_nearest.cost + self.c(xnearest, xnew)
+                    (x_min, c_min) = self.connect_path(X_near, x_min, c_min)
+                    G.append(TreeNode(x_new, c_min, x_min))
+                    G = self.rewire(G, X_near, x_new)
 
-                if self.in_end_region(x_new): # If goal is reached
-                    (found, path)= self.retrive_path(G, end_pos)   
+                    if self.in_end_region(x_new): # If goal is reached
+                        (found, path)= self.retrive_path(G, end_pos) 
+            
+            #This runs rrt instead of rrt*
+            else:
+                if ObstacleFree(xnearest, xnew):
+                    V.append(x_new)
+                    G.append(TreeNode(x_new, parent=x_nearest))
         if found:
             return path
         else:
