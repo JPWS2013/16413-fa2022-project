@@ -98,9 +98,9 @@ class MotionPlanner:
         found = 0 # Variable to keep track of if we've made it to the goal
         for i in range(self.iterations): # Iterate
             if i % self.goal_int == 0: # Every 20 iterations take the random sample from inside the goal area (goal biasing)
-                x_rand = getsamplefunc(goal)
+                x_rand = get_sample_fn(sample_goal=True)
             else: # Else take the random sample from somewhere in the operating area
-                x_rand = getsamplefunc(general_area)
+                x_rand = get_sample_fn()
             x_nearest = get_nearest(x_rand)
             x_new = steer(x_rand, x_nearest, self.d) # Use the stter function to make x_new's position
             if ObtacleFree(xnearest, xnew):
