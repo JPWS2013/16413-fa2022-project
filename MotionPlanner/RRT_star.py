@@ -9,10 +9,9 @@ class TreeNode(object):
         self.cost = cost
 
 class MotionPlanner:
-    def __init__(self, world, action_map, location_map, iterations, d, goal_int, goal_biasing=False, run_rrtstar=False):
+    def __init__(self, world, location_map, iterations=10000, d=0.3, goal_int=20, goal_biasing=False, run_rrtstar=False):
         self.world = world
-        self.initial_pos = getinitialpos()
-        self.action_map = action_map
+        self.initial_pos = self.getinitialpos()
         self.location_map = location_map
         self.iterations = iterations
         self.d = d
@@ -20,6 +19,9 @@ class MotionPlanner:
         self.goal_biasing = goal_biasing
         self.run_rrtstar = run_rrtstar
 
+    def getinitialpos(self):
+        pass
+    
     # Create a function to find the distance between two points
     def dist(self, a, b):
         diff = (a[0]-b[0], a[1]-b[1], a[2]-b[2])
@@ -60,9 +62,9 @@ class MotionPlanner:
             return tuple(next(generator))
         return fn
     
-    def connect_path(self, near_list, x_min, c_min, x_new)
+    def connect_path(self, near_list, x_min, c_min, x_new):
         for node in near_list:
-            if (collison_free(node, x_new)) and (node.cost + c(node, x_new) < c_min)
+            if (collison_free(node, x_new)) and (node.cost + c(node, x_new) < c_min):
                 x_min = node
                 cmin = node.cost + c(node, x_new)
         return (x_min, c_min)
@@ -94,33 +96,35 @@ class MotionPlanner:
         found = 1 
         return (found, path)
 
-    def in_end_region(x_new)
+    def in_end_region(x_new):
+        pass
 
     def solve(self, start_pos, end_pos):
         V = [self.initial_pos] # Create a list of node positions
-        G = [TreeNode(start_pos, cost, None)] # Create a list of TreeNode objects
+        G = [TreeNode(start_pos, cost=0, parent=None)] # Create a list of TreeNode objects
         found = 0 # Variable to keep track of if we've made it to the goal
         for i in range(self.iterations): # Iterate
             if (self.goal_biasing) and (i % self.goal_int == 0): # Every 20 iterations take the random sample from inside the goal area (goal biasing)
-                x_rand = get_sample_fn(sample_goal=True)
+                x_rand = self.get_sample_fn(sample_goal=True)
             else: # Else take the random sample from somewhere in the operating area
-                x_rand = get_sample_fn()
-            x_nearest = get_nearest_node(x_rand)
-            x_new = steer(x_rand, x_nearest, self.d) # Use the stter function to make x_new's position
+                x_rand = self.get_sample_fn()
+            x_nearest = self.get_nearest_node(x_rand)
+            x_new = self.steer(x_rand, x_nearest, self.d) # Use the stter function to make x_new's position
             
             #This runs rrt* instead of rrt
             if self.run_rrtstar:
-                if ObstacleFree(xnearest, xnew):
-                    X_near = self.near(G = (V, E), xnew, min{gamma_RRG*(log(card V)/ card V)^(1/d), nu}) ;
-                    V.append(x_new)
-                    x_min = xnearest
-                    c_min = x_nearest.cost + self.c(xnearest, xnew)
-                    (x_min, c_min) = self.connect_path(X_near, x_min, c_min)
-                    G.append(TreeNode(x_new, c_min, x_min))
-                    G = self.rewire(G, X_near, x_new)
+                continue
+                # if ObstacleFree(xnearest, xnew):
+                #     X_near = self.near(G = (V, E), xnew, min{gamma_RRG*(log(card V)/ card V)^(1/d), nu})
+                #     V.append(x_new)
+                #     x_min = xnearest
+                #     c_min = x_nearest.cost + self.c(xnearest, xnew)
+                #     (x_min, c_min) = self.connect_path(X_near, x_min, c_min)
+                #     G.append(TreeNode(x_new, c_min, x_min))
+                #     G = self.rewire(G, X_near, x_new)
 
-                    if self.in_end_region(x_new): # If goal is reached
-                        (found, path)= self.retrive_path(G, end_pos) 
+                #     if self.in_end_region(x_new): # If goal is reached
+                #         (found, path)= self.retrive_path(G, end_pos) 
             
             #This runs rrt instead of rrt*
             else:
@@ -131,5 +135,3 @@ class MotionPlanner:
             return path
         else:
             print('No path found')
-            
-

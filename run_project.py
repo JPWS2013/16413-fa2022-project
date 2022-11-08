@@ -1,6 +1,7 @@
 import numpy as np
 from pddl_parser.PDDL import PDDL_Parser
 import os, sys
+import MotionPlanner.RRT_star as mp
 
 SUBMODULE_PATH= os.path.abspath(os.path.join(os.getcwd(), 'padm-project-2022f'))
 sys.path.append(SUBMODULE_PATH)
@@ -26,7 +27,7 @@ class ExecutionEngine():
 
         self.location_map = self.create_location_map()
 
-        # self.motion_planner = mp.MotionPlanner(world, self.action_map, self.location_map)
+        self.motion_planner = mp.MotionPlanner(self.world, self.location_map)
 
     def end(self):
         print("Destroying world object")
@@ -59,7 +60,13 @@ class ExecutionEngine():
     def execute_action(self, action):
         print("Executing action: ", action.name, action.parameters[1:])
 
-        # match action.name:
+        if action.name == 'move':
+                arm, start_pos_name, end_pos_name = action.parameters
+                if start_pos_name == 'start_pos':
+                    start_pos = (0,0,0) #TODO get the actual initial position
+                    end_pos = self.location_map[end_pos_name]
+                path = self.motion_planner.solve(start_pos, end_pos)
+                self.move_robot(path)
         #     parameters = action.parameters[1:]
         #     case 'open':
         #         self.world.open_door
@@ -69,8 +76,12 @@ class ExecutionEngine():
         #         self.world.close_gripper
         #     case 'placein' | 'placeon':
         #         self.world.open_gripper
-            # case 'move':
-            #     action_map[action] = self.mp.solve
+
+    def move_robot(self, path):
+        for single_path in path:
+            #set the joint positions
+            raise Exception("Function to move the robot not implemented! Code will not execute further!")
+            continue
 
     
     def get_activity_plan(self):
@@ -135,7 +146,7 @@ class ExecutionEngine():
                 print("Error getting coordinates for the following link: ", e, " Exiting!")
                 sys.exit(1)
 
-        dump_world()
+        # dump_world()
 
         # for each_item in items:
         #     try:
@@ -158,11 +169,13 @@ if __name__ == "__main__":
 
     engine = ExecutionEngine(problem_file, domain_file)
 
-    try:
-        # engine.run()
-        engine.end()
-    except Exception as e:
-        print(e)
-        engine.end()
+    engine.run()
+    engine.end()
+    # try:
+    #     engine.run()
+    #     engine.end()
+    # except Exception as e:
+    #     print(e)
+    #     engine.end()
 
     
