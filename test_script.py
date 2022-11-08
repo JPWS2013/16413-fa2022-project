@@ -39,9 +39,25 @@ def pose2d_on_surface(world, entity_name, surface_name, pose2d=UNIT_POSE2D):
 add_sugar_box = lambda world, **kwargs: add_ycb(world, 'sugar_box', **kwargs)
 add_spam_box = lambda world, **kwargs: add_ycb(world, 'potted_meat_can', **kwargs)
 
+def get_sample_fn(body, joints, custom_limits={}, **kwargs):
+    lower_limits, upper_limits = get_custom_limits(body, joints, custom_limits, circular_limits=CIRCULAR_LIMITS)
+    generator = interval_generator(lower_limits, upper_limits, **kwargs)
+    def fn():
+        return tuple(next(generator))
+    return fn
+
 np.set_printoptions(precision=3, suppress=True)
-world = World(use_gui=True)
+world = World(use_gui=False)
 sugar_box = add_sugar_box(world, idx=0, counter=1, pose2d=(-0.2, 0.65, np.pi / 4))
 spam_box = add_spam_box(world, idx=1, counter=0, pose2d=(0.2, 1.1, np.pi / 4))
-wait_for_user()
 world._update_initial()
+tool_link = link_from_name(world.robot, 'panda_hand')
+joints = get_movable_joints(world.robot)
+print('Base Joints', [get_joint_name(world.robot, joint) for joint in world.base_joints])
+print('Arm Joints', [get_joint_name(world.robot, joint) for joint in world.arm_joints])
+sample_fn = get_sample_fn(world.robot, world.arm_joints)
+wait_for_user()
+print("Getting random sample")
+conf = sample_fn()
+print("Sample: ", conf)
+wait_for_user()
