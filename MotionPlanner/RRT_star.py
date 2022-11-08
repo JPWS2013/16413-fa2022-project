@@ -68,6 +68,10 @@ class MotionPlanner:
     def rewire(G, X_near, x_new):
 
     def c(start, end):
+        start_vec = np.array(start)
+        end_vec = np.array(end)
+        dir_vec = end_vec - start_vec
+        return np.linalg.norm(dir_vec)
 
     def collision_free(a, b):
 
