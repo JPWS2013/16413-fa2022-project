@@ -10,7 +10,7 @@ from src.world import World
 from src.utils import JOINT_TEMPLATE, BLOCK_SIZES, BLOCK_COLORS, COUNTERS, \
     ALL_JOINTS, LEFT_CAMERA, CAMERA_MATRIX, CAMERA_POSES, CAMERAS, compute_surface_aabb, BLOCK_TEMPLATE, name_from_type, GRASP_TYPES, SIDE_GRASP, joint_from_name, STOVES, TOP_GRASP, randomize, LEFT_DOOR, point_from_pose, translate_linearly
 
-from pybullet_tools.utils import set_pose, Pose, Point, Euler, multiply, get_pose, get_point, create_box, set_all_static, WorldSaver, create_plane, COLOR_FROM_NAME, stable_z_on_aabb, pairwise_collision, elapsed_time, get_aabb_extent, get_aabb, create_cylinder, set_point, get_function_name, wait_for_user, dump_world, set_random_seed, set_numpy_seed, get_random_seed, get_numpy_seed, set_camera, set_camera_pose, link_from_name, get_movable_joints, get_joint_name, CIRCULAR_LIMITS, get_custom_limits, set_joint_positions, interval_generator, get_link_pose, interpolate_poses, get_all_links, get_link_names, get_link_inertial_pose
+from pybullet_tools.utils import set_pose, Pose, Point, Euler, multiply, get_pose, get_point, create_box, set_all_static, WorldSaver, create_plane, COLOR_FROM_NAME, stable_z_on_aabb, pairwise_collision, elapsed_time, get_aabb_extent, get_aabb, create_cylinder, set_point, get_function_name, wait_for_user, dump_world, set_random_seed, set_numpy_seed, get_random_seed, get_numpy_seed, set_camera, set_camera_pose, link_from_name, get_movable_joints, get_joint_name, CIRCULAR_LIMITS, get_custom_limits, set_joint_positions, interval_generator, get_link_pose, interpolate_poses, get_all_links, get_link_names, get_link_inertial_pose, body_from_name, get_pose, get_link_name, get_bodies
 
 # import MotionPlanner.RRT_star as mp
 import ActivityPlanner.ff_planner as ap
@@ -24,7 +24,7 @@ class ExecutionEngine():
         self.parser = self.init_parser()
         self.world = self.create_world()
 
-        self.location_map = self.get_locations()
+        self.location_map = self.create_location_map()
 
         # self.motion_planner = mp.MotionPlanner(world, self.action_map, self.location_map)
 
@@ -34,6 +34,21 @@ class ExecutionEngine():
 
     def run(self):
         act_plan = self.get_activity_plan()
+        
+        # Expected plan:
+        # move ('a', 'start_pos', 'hitman_countertop')
+        # move ('a', 'hitman_countertop', 'back_right_stove')
+        # grip ('a', 'sugar_box0', 'back_right_stove')
+        # move ('a', 'back_right_stove', 'hitman_countertop')
+        # placeon ('a', 'sugar_box0', 'hitman_countertop')
+        # move ('a', 'hitman_countertop', 'indigo_countertop')
+        # move ('a', 'indigo_countertop', 'indigo_drawer_top')
+        # open ('a', 'indigo_drawer_top')
+        # move ('a', 'indigo_drawer_top', 'indigo_countertop')
+        # grip ('a', 'potted_meat_can1', 'indigo_countertop')
+        # move ('a', 'indigo_countertop', 'indigo_drawer_top')
+        # placein ('a', 'potted_meat_can1', 'indigo_drawer_top')
+        # close ('a', 'indigo_drawer_top')
 
         for action in act_plan:
             self.execute_action(action)
@@ -100,11 +115,10 @@ class ExecutionEngine():
         set_pose(body, pose)
         return pose
     
-    def get_locations(self):
+    def create_location_map(self):
         locations = self.parser.objects['location']
-        actions = [action.name for action in self.parser.actions]
-
-        action_map = dict()
+        items = self.parser.objects['item']
+        
         location_map = dict()
 
         # Get the 3D coordinates for all locations in the kitchen
@@ -118,8 +132,19 @@ class ExecutionEngine():
                 location_map[loc] = coord
 
             except ValueError as e:
-                print("Error getting lcoordinates for the following link: ", e, " Exiting!")
+                print("Error getting coordinates for the following link: ", e, " Exiting!")
                 sys.exit(1)
+
+        dump_world()
+
+        # for each_item in items:
+        #     try:
+        #         body = body_from_name(each_item)
+        #         coord = get_pose(body)[0]
+        #         print("Item ", each_item, "has coordinates ", coord)
+            
+        #     except ValueError as e:
+        #         print("Error getting coordinates for the following link: ", e, "Exiting!")
 
         return location_map
 
@@ -134,7 +159,7 @@ if __name__ == "__main__":
     engine = ExecutionEngine(problem_file, domain_file)
 
     try:
-        engine.run()
+        # engine.run()
         engine.end()
     except Exception as e:
         print(e)
