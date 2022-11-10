@@ -191,8 +191,8 @@ def expand_state(parser, current_state, grounded_actions, h_func, ignore_deletes
             
             h_val=h_func(next_state, parser, grounded_actions)
 
-            if print_actions:
-                print("For action: ", action.name, action.parameters, ", h value is ", h_val)
+            # if print_actions:
+            #     print("For action: ", action.name, action.parameters, ", h value is ", h_val)
 
             # print("Heuristic value for this next state: ", h_val)
 
@@ -251,12 +251,12 @@ def enforced_hill_climb(current_state, parser, grounded_actions):
 
         iteration_counter+=1
 
-        print("======================================")
-        print("Looking for next action for current state:")
-        for prop in current_state:
-            print(prop)
-        print("Current h value: ", current_h_val)
-        print("")
+        # print("======================================")
+        # print("Looking for next action for current state:")
+        # for prop in current_state:
+        #     print(prop)
+        # print("Current h value: ", current_h_val)
+        # print("")
 
         possible_next_states = expand_state(parser, current_state, grounded_actions, calculate_heuristic, print_actions=True)
 
@@ -268,7 +268,7 @@ def enforced_hill_climb(current_state, parser, grounded_actions):
             h_val, best_actions_t, best_next_state = resolve_plateau(possible_next_states, current_h_val, parser, grounded_actions)
 
             actions_to_print = [str(best_action.name) + str(best_action.parameters) for best_action in best_actions_t]
-            print("Selected actions: ", actions_to_print)
+            # print("Selected actions: ", actions_to_print)
 
             selected_actions = selected_actions + best_actions_t
         
@@ -277,13 +277,13 @@ def enforced_hill_climb(current_state, parser, grounded_actions):
             # Otherwise, if the lowest heuristic value for all child states is lower than teh current one,
             # Then just find the first state that hast hat value and use it
             for h_val, action, next_state in possible_next_states:
-                print(action.name, action.parameters, " has value: ", h_val)
+                # print(action.name, action.parameters, " has value: ", h_val)
                 if  h_val < current_h_val:
-                    print(action.name, action.parameters, " has a better h value!")
+                    # print(action.name, action.parameters, " has a better h value!")
                     best_action = action
                     best_next_state = next_state
                     
-                    print("Selected action: ", best_action.name, best_action.parameters)
+                    # print("Selected action: ", best_action.name, best_action.parameters)
                     selected_actions.append(best_action)
                     
                     break
