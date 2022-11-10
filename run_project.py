@@ -34,8 +34,15 @@ class ExecutionEngine():
         self.world.destroy()
 
     def run(self):
+        print("===============================")
+        print("Step 1: Getting activity plan.....")
         act_plan = self.get_activity_plan()
-        
+
+        print("Identified activity plan: ")
+        for action in act_plan:
+            print(action.name, action.parameters)
+        print("===============================")
+
         # Expected plan:
         # move ('a', 'start_pos', 'hitman_countertop')
         # move ('a', 'hitman_countertop', 'back_right_stove')
@@ -50,7 +57,7 @@ class ExecutionEngine():
         # move ('a', 'indigo_countertop', 'indigo_drawer_top')
         # placein ('a', 'potted_meat_can1', 'indigo_drawer_top')
         # close ('a', 'indigo_drawer_top')
-
+        print("Step 2: Executing actions in the activity plan...")
         for action in act_plan:
             self.execute_action(action)
             # start_pos, end_pos = get_positions()
@@ -58,7 +65,9 @@ class ExecutionEngine():
             # self.execute(motion_plan)
 
     def execute_action(self, action):
-        print("Executing action: ", action.name, action.parameters[1:])
+        print("    - Executing action: ", action.name, action.parameters[1:])
+
+        wait_for_user()
 
         if action.name == 'move':
                 arm, start_pos_name, end_pos_name = action.parameters
@@ -139,7 +148,7 @@ class ExecutionEngine():
             try:
                 link = link_from_name(self.world.kitchen, loc)
                 coord = get_link_pose(self.world.kitchen, link)[0]
-                print("Location ", loc, " has coordinates: ", coord)
+                # print("Location ", loc, " has coordinates: ", coord)
                 location_map[loc] = coord
 
             except ValueError as e:
@@ -150,7 +159,7 @@ class ExecutionEngine():
             try:
                 body = self.world.get_body(each_item)
                 coord = get_pose(body)[0]
-                print("Item ", each_item, "has coordinates ", coord)
+                # print("Item ", each_item, "has coordinates ", coord)
             
             except ValueError as e:
                 print("Error getting coordinates for the following link: ", e, "Exiting!")
