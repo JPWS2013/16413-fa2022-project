@@ -8,7 +8,7 @@ sys.path.append(SUBMODULE_PATH)
 sys.path.extend(os.path.join(SUBMODULE_PATH, d) for d in ['pddlstream', 'ss-pybullet'])
 
 from pybullet_tools.utils import set_pose, Pose, Point, Euler, multiply, get_pose, get_point, create_box, set_all_static, WorldSaver, create_plane, COLOR_FROM_NAME, stable_z_on_aabb, pairwise_collision, elapsed_time, get_aabb_extent, get_aabb, create_cylinder, set_point, get_function_name, wait_for_user, dump_world, set_random_seed, set_numpy_seed, get_random_seed, get_numpy_seed, set_camera, set_camera_pose, link_from_name, get_movable_joints, get_joint_name
-from pybullet_tools.utils import CIRCULAR_LIMITS, get_custom_limits, set_joint_positions, interval_generator, get_link_pose, interpolate_poses
+from pybullet_tools.utils import CIRCULAR_LIMITS, get_custom_limits, set_joint_positions, interval_generator, get_link_pose, interpolate_poses, get_joint_positions
 
 from pybullet_tools.ikfast.franka_panda.ik import PANDA_INFO, FRANKA_URDF
 from pybullet_tools.ikfast.ikfast import get_ik_joints, closest_inverse_kinematics
@@ -52,7 +52,7 @@ class MotionPlanner:
             x_new = (scaled_diff[0]+b[0], scaled_diff[1]+b[1], scaled_diff[2]+b[2])
         return x_new
 
-    def get_nearest_node(self, point):
+    def get_nearest_node(self, point, G):
         """
         Uses scipy's KD Tree implementation to get the nearest node to the point
 
@@ -112,17 +112,18 @@ class MotionPlanner:
     def in_end_region(x_new):
         pass
 
-    def solve(self, start_pos, end_pos):
+    def solve(self, end_pos):
         V = [self.initial_pos] # Create a list of node positions
+        star_pos = get_joint_positions(self.world.robot, self.world.arm_joints)
         G = [TreeNode(start_pos, cost=0, parent=None)] # Create a list of TreeNode objects
         found = 0 # Variable to keep track of if we've made it to the goal
         for i in range(self.iterations): # Iterate
             if (self.goal_biasing) and (i % self.goal_int == 0): # Every 20 iterations take the random sample from inside the goal area (goal biasing)
-                x_rand = self.get_random_sample(sample_goal=True)
+                rand_joints = self.get_random_sample(sample_goal=True)
             else: # Else take the random sample from somewhere in the operating area
-                x_rand = self.get_random_sample()
-            x_nearest = self.get_nearest_node(x_rand)
-            x_new = self.steer(x_rand, x_nearest, self.d) # Use the stter function to make x_new's position
+                rand_joints = self.get_random_sample()
+            x_nearest = self.get_nearest_node(rand_joints, G)
+            x_new = self.steer(rand_joints, x_nearest, self.d) # Use the stter function to make x_new's position
             
             #This runs rrt* instead of rrt
             if self.run_rrtstar:
