@@ -42,15 +42,18 @@ class MotionPlanner:
         return norm
 
     # Create a function to place x_new between x_rand and x_nearest based on d
-    def steer(self, a, b, d):
-        diff = (a[0]-b[0], a[1]-b[1], a[2]-b[2]) # Find vector between x_rand and x_nearest
-        if d > np.linalg.norm(diff): # If d is greater than the magnitude of the vector make x_new x_rand
-            x_new = a
+    def steer(self, rand_point, nearest_point, d):
+        rand_vec = np.array(rand_point)
+        nearest_vec = np.array(nearest_point.pos)
+        dir_vec = rand_vec - nearest_vec
+        mag = np.linalg.norm(dir_vec)
+        if d > mag: # If d is greater than the magnitude of the vector make x_new x_rand
+            x_new = rand_point
         else: # Else scale the vector to the magnitude d
-            coeff = d/np.linalg.norm(diff)
-            scaled_diff = (coeff*diff[0], coeff*diff[1], coeff*diff[2])
-            x_new = (scaled_diff[0]+b[0], scaled_diff[1]+b[1], scaled_diff[2]+b[2])
-        return x_new
+            coeff = d/mag
+            scaled_dir_vec= coeff*(dir_vec)
+            x_new = nearest_vec + scaled_dir_vec
+        return tuple(x_new)
 
     def get_nearest_node(self, point, G):
         """
@@ -145,7 +148,7 @@ class MotionPlanner:
             
             #This runs rrt instead of rrt*
             else:
-                if ObstacleFree(xnearest, xnew):
+                if self.obst_free(x_nearest, x_new):
                     V.append(x_new)
                     G.append(TreeNode(x_new, parent=x_nearest))
         if found:
