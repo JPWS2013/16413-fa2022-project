@@ -1,6 +1,6 @@
 import numpy as np
 from pddl_parser.PDDL import PDDL_Parser
-import os, sys
+import os, sys, traceback
 import MotionPlanner.RRT_star as mp
 
 SUBMODULE_PATH= os.path.abspath(os.path.join(os.getcwd(), 'padm-project-2022f'))
@@ -11,7 +11,7 @@ from src.world import World
 from src.utils import JOINT_TEMPLATE, BLOCK_SIZES, BLOCK_COLORS, COUNTERS, \
     ALL_JOINTS, LEFT_CAMERA, CAMERA_MATRIX, CAMERA_POSES, CAMERAS, compute_surface_aabb, BLOCK_TEMPLATE, name_from_type, GRASP_TYPES, SIDE_GRASP, joint_from_name, STOVES, TOP_GRASP, randomize, LEFT_DOOR, point_from_pose, translate_linearly
 
-from pybullet_tools.utils import set_pose, Pose, Point, Euler, multiply, get_pose, get_point, create_box, set_all_static, WorldSaver, create_plane, COLOR_FROM_NAME, stable_z_on_aabb, pairwise_collision, elapsed_time, get_aabb_extent, get_aabb, create_cylinder, set_point, get_function_name, wait_for_user, dump_world, set_random_seed, set_numpy_seed, get_random_seed, get_numpy_seed, set_camera, set_camera_pose, link_from_name, get_movable_joints, get_joint_name, CIRCULAR_LIMITS, get_custom_limits, set_joint_positions, interval_generator, get_link_pose, interpolate_poses, get_all_links, get_link_names, get_link_inertial_pose, body_from_name, get_pose, get_link_name, get_bodies
+from pybullet_tools.utils import set_pose, Pose, Point, Euler, multiply, get_pose, get_point, create_box, set_all_static, WorldSaver, create_plane, COLOR_FROM_NAME, stable_z_on_aabb, pairwise_collision, elapsed_time, get_aabb_extent, get_aabb, create_cylinder, set_point, get_function_name, wait_for_user, dump_world, set_random_seed, set_numpy_seed, get_random_seed, get_numpy_seed, set_camera, set_camera_pose, link_from_name, get_movable_joints, get_joint_name, CIRCULAR_LIMITS, get_custom_limits, set_joint_positions, interval_generator, get_link_pose, interpolate_poses, get_all_links, get_link_names, get_link_inertial_pose, body_from_name, get_pose, get_link_name, get_bodies, dump_body
 
 # import MotionPlanner.RRT_star as mp
 import ActivityPlanner.ff_planner as ap
@@ -146,16 +146,14 @@ class ExecutionEngine():
                 print("Error getting coordinates for the following link: ", e, " Exiting!")
                 sys.exit(1)
 
-        # dump_world()
-
-        # for each_item in items:
-        #     try:
-        #         body = body_from_name(each_item)
-        #         coord = get_pose(body)[0]
-        #         print("Item ", each_item, "has coordinates ", coord)
+        for each_item in items:
+            try:
+                body = self.world.get_body(each_item)
+                coord = get_pose(body)[0]
+                print("Item ", each_item, "has coordinates ", coord)
             
-        #     except ValueError as e:
-        #         print("Error getting coordinates for the following link: ", e, "Exiting!")
+            except ValueError as e:
+                print("Error getting coordinates for the following link: ", e, "Exiting!")
 
         return location_map
 
@@ -169,13 +167,11 @@ if __name__ == "__main__":
 
     engine = ExecutionEngine(problem_file, domain_file)
 
-    engine.run()
-    engine.end()
-    # try:
-    #     engine.run()
-    #     engine.end()
-    # except Exception as e:
-    #     print(e)
-    #     engine.end()
+    try:
+        engine.run()
+        engine.end()
+    except Exception as e:
+        engine.end()
+        print(traceback.format_exc())
 
     
