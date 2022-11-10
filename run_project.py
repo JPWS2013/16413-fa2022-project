@@ -27,7 +27,7 @@ class ExecutionEngine():
 
         self.location_map = self.create_location_map()
 
-        self.motion_planner = mp.MotionPlanner(self.world, self.location_map)
+        self.motion_planner = mp.MotionPlanner(self.create_world(), self.location_map)
 
     def end(self):
         print("Destroying world object")
@@ -71,10 +71,8 @@ class ExecutionEngine():
 
         if action.name == 'move':
                 arm, start_pos_name, end_pos_name = action.parameters
-                if start_pos_name == 'start_pos':
-                    start_pos = (0,0,0) #TODO get the actual initial position
-                    end_pos = self.location_map[end_pos_name]
-                path = self.motion_planner.solve(start_pos, end_pos)
+                end_pos = self.location_map[end_pos_name]
+                path = self.motion_planner.solve(end_pos)
                 self.move_robot(path)
         #     parameters = action.parameters[1:]
         #     case 'open':
@@ -107,7 +105,7 @@ class ExecutionEngine():
 
         return parser
 
-    def create_world(self):
+    def create_world(self,use_gui=False):
         
         add_sugar_box = lambda world, **kwargs: self.add_ycb(world, 'sugar_box', **kwargs)
         add_spam_box = lambda world, **kwargs: self.add_ycb(world, 'potted_meat_can', **kwargs)
