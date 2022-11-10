@@ -61,13 +61,14 @@ class MotionPlanner:
         Returns:
             The (x,y) tuple of the nearest point in the tree
         """
+        
         points = np.array([node.pos for node in G])
         kdtree = KDTree(points)
 
         d,i = kdtree.query(point, k=1)
 
         for node in G:
-            if node.pos == i:
+            if node.pos == tuple(points[i]):
                 return node
         
     def get_sample_fn(self, body, joints, custom_limits={}, **kwargs):
@@ -116,7 +117,7 @@ class MotionPlanner:
 
     def solve(self, end_pos):
         V = [self.initial_pos] # Create a list of node positions
-        star_pos = get_joint_positions(self.world.robot, self.world.arm_joints)
+        start_pos = get_joint_positions(self.world.robot, self.world.arm_joints)
         G = [TreeNode(start_pos, cost=0, parent=None)] # Create a list of TreeNode objects
         found = 0 # Variable to keep track of if we've made it to the goal
         for i in range(self.iterations): # Iterate
