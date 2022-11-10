@@ -21,9 +21,8 @@ class TreeNode(object):
         self.cost = cost
 
 class MotionPlanner:
-    def __init__(self, world, test_world, location_map, iterations=10000, d=0.3, goal_int=20, goal_biasing=False, run_rrtstar=False):
+    def __init__(self, world, location_map, iterations=10000, d=0.3, goal_int=20, goal_biasing=False, run_rrtstar=False):
         self.world = world
-        self.test_world = test_world
         self.initial_pos = self.getinitialpos()
         self.location_map = location_map
         self.iterations = iterations
