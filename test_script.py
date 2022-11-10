@@ -7,7 +7,7 @@ SUBMODULE_PATH= os.path.abspath(os.path.join(os.getcwd(), 'padm-project-2022f'))
 sys.path.append(SUBMODULE_PATH)
 sys.path.extend(os.path.join(SUBMODULE_PATH, d) for d in ['pddlstream', 'ss-pybullet'])
 
-from pybullet_tools.utils import set_pose, Pose, Point, Euler, multiply, get_pose, get_point, create_box, set_all_static, WorldSaver, create_plane, COLOR_FROM_NAME, stable_z_on_aabb, pairwise_collision, elapsed_time, get_aabb_extent, get_aabb, create_cylinder, set_point, get_function_name, wait_for_user, dump_world, set_random_seed, set_numpy_seed, get_random_seed, get_numpy_seed, set_camera, set_camera_pose, link_from_name, get_movable_joints, get_joint_name
+from pybullet_tools.utils import set_pose, Pose, Point, Euler, multiply, get_pose, get_point, create_box, set_all_static, WorldSaver, create_plane, COLOR_FROM_NAME, stable_z_on_aabb, pairwise_collision, elapsed_time, get_aabb_extent, get_aabb, create_cylinder, set_point, get_function_name, wait_for_user, dump_world, set_random_seed, set_numpy_seed, get_random_seed, get_numpy_seed, set_camera, set_camera_pose, link_from_name, get_movable_joints, get_joint_name, get_joint_positions, set_joint_positions
 from pybullet_tools.utils import CIRCULAR_LIMITS, get_custom_limits, set_joint_positions, interval_generator, get_link_pose, interpolate_poses, get_collision_data
 
 from pybullet_tools.ikfast.franka_panda.ik import PANDA_INFO, FRANKA_URDF
@@ -60,10 +60,36 @@ wait_for_user()
 print("Getting random sample")
 conf = sample_fn()
 print("Sample: ", conf)
+
 goal_pos = translate_linearly(world, 1.2) 
 set_joint_positions(world.robot, world.base_joints, goal_pos)
-wait_for_user()
-collisions = get_collision_data(world.robot)
-print('Collisions:')
-print(collisions)
+
+action_option = 0
+
+while action_option != 4:
+    action_option = input("Choose an action: 1. Get current pose, 2. Set a new pose, 3. Check for collisions, 4. stop doing stuff")
+    action_option = int(action_option.strip())
+    print("Action Option Received: ", action_option)
+    if action_option == 1:
+        tool_link = link_from_name(world.robot, 'panda_hand')
+        start_pose = get_link_pose(world.robot, tool_link)
+        print("Pose of panda_hand: ", start_pose)
+
+        joints_pos = get_joint_positions(world.robot, world.arm_joints)
+        print("Position of joints: ", joints_pos)
+
+    elif action_option ==2:
+        joint_angles_str = input("Feed a 7 element tuple of joint angles: ")
+        joint_angles_str = joint_angles_str.split(',')
+        joint_angles = tuple([float(element) for element in joint_angles_str])
+        set_joint_positions(world.robot, world.arm_joints, joint_angles)
+    
+    elif action_option == 3:
+        collisions = get_collision_data(world.robot)
+        print('Collisions:')
+        print(collisions)
+    
+    else:
+        continue
+
 wait_for_user()
