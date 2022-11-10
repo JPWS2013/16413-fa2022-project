@@ -8,7 +8,7 @@ sys.path.append(SUBMODULE_PATH)
 sys.path.extend(os.path.join(SUBMODULE_PATH, d) for d in ['pddlstream', 'ss-pybullet'])
 
 from pybullet_tools.utils import set_pose, Pose, Point, Euler, multiply, get_pose, get_point, create_box, set_all_static, WorldSaver, create_plane, COLOR_FROM_NAME, stable_z_on_aabb, pairwise_collision, elapsed_time, get_aabb_extent, get_aabb, create_cylinder, set_point, get_function_name, wait_for_user, dump_world, set_random_seed, set_numpy_seed, get_random_seed, get_numpy_seed, set_camera, set_camera_pose, link_from_name, get_movable_joints, get_joint_name
-from pybullet_tools.utils import CIRCULAR_LIMITS, get_custom_limits, set_joint_positions, interval_generator, get_link_pose, interpolate_poses, get_joint_positions
+from pybullet_tools.utils import CIRCULAR_LIMITS, get_custom_limits, set_joint_positions, interval_generator, get_link_pose, interpolate_poses, get_joint_positions, body_collision
 
 from pybullet_tools.ikfast.franka_panda.ik import PANDA_INFO, FRANKA_URDF
 from pybullet_tools.ikfast.ikfast import get_ik_joints, closest_inverse_kinematics
@@ -21,7 +21,7 @@ class TreeNode(object):
         self.cost = cost
 
 class MotionPlanner:
-    def __init__(self, world, location_map, iterations=10000, d=0.3, goal_int=20, goal_biasing=False, run_rrtstar=False):
+    def __init__(self, world, location_map, iterations=10000, d=0.3, goal_int=20, goal_biasing=False, run_rrtstar=False, goal_radius = 0.1):
         self.world = world
         self.initial_pos = self.getinitialpos()
         self.location_map = location_map
@@ -31,6 +31,7 @@ class MotionPlanner:
         self.goal_biasing = goal_biasing
         self.run_rrtstar = run_rrtstar
         self.get_random_sample = self.get_sample_fn(self.world.robot, self.world.arm_joints)
+        self.goal_radius = goal_radius
 
     def getinitialpos(self):
         pass
@@ -97,32 +98,40 @@ class MotionPlanner:
         dir_vec = end_vec - start_vec
         return np.linalg.norm(dir_vec)
 
-    def collision_free(self, a, b):
-        return collision_free
+    # def collision_free(self, a, b):
+    #     return collision_free
 
-    def obst_free(self, a, b):
-        get_collision_data(body, link=BASE_LINK)
+    def obst_free(self, x_nearest, x_new):
+        # collisions = body_collision(self.world.robot, self.world.kitchen, max_distance=0.01)
+        # if not collisions:
+        #     collisions = body_collision(self.world.robot, self.world.get_body('potted_meat_can1'), max_distance=0.01)
+        # if not collisions:
+        #     collisions = body_collision(self.world.robot, self.world.get_body('sugar_box0'), max_distance=0.01)
+        return True
 
-    def retrive_path(self, G, end_pos, start_pos, x_new):
+    def retrive_path(self, x_new):
         current_pos = x_new
-        path = [current_pos]
-        while current_pos != start_pos:  
-                    for ver in G:
-                        if ver.pos == current_pos:
-                            current_pos = ver.parent
-                            break
-                    path.insert(0, current_pos) 
-        found = 1 
-        return (found, path)
+        path = []
+        while current_pos.parent != None:  
+            path.append(current_pos.pos)
+            current_pos = current_pos.parent
+        return path
 
-    def in_end_region(x_new):
-        pass
+    def in_end_region(self, x_new, end_pos):
+        set_joint_positions(self.world.robot, self.world.arm_joints, x_new)
+        x_new_cart = get_link_pose(self.world.robot, link_from_name(self.world.robot, 'panda_hand'))[0]
+        diff = np.linalg.norm(np.array(x_new_cart) - np.array(end_pos))
+        if diff < self.goal_radius:
+            return True
+        else:
+            return False
 
     def solve(self, end_pos):
         V = [self.initial_pos] # Create a list of node positions
         start_pos = get_joint_positions(self.world.robot, self.world.arm_joints)
         G = [TreeNode(start_pos, cost=0, parent=None)] # Create a list of TreeNode objects
         found = 0 # Variable to keep track of if we've made it to the goal
+        print('Here')
         for i in range(self.iterations): # Iterate
             if (self.goal_biasing) and (i % self.goal_int == 0): # Every 20 iterations take the random sample from inside the goal area (goal biasing)
                 rand_joints = self.get_random_sample(sample_goal=True)
@@ -130,9 +139,10 @@ class MotionPlanner:
                 rand_joints = self.get_random_sample()
             x_nearest = self.get_nearest_node(rand_joints, G)
             x_new = self.steer(rand_joints, x_nearest, self.d) # Use the stter function to make x_new's position
-            
+            print('Here2')
             #This runs rrt* instead of rrt
             if self.run_rrtstar:
+                print('Here3')
                 continue
                 # if ObstacleFree(xnearest, xnew):
                 #     X_near = self.near(G = (V, E), xnew, min{gamma_RRG*(log(card V)/ card V)^(1/d), nu})
@@ -149,9 +159,14 @@ class MotionPlanner:
             #This runs rrt instead of rrt*
             else:
                 if self.obst_free(x_nearest, x_new):
+                    print('Here4')
                     V.append(x_new)
-                    G.append(TreeNode(x_new, parent=x_nearest))
-        if found:
+                    obj = TreeNode(x_new, parent=x_nearest)
+                    G.append(obj)
+                    if self.in_end_region(x_new, end_pos):
+                        path = self.retrive_path(obj)
+                        break
+        if path:
             return path
         else:
             print('No path found')
