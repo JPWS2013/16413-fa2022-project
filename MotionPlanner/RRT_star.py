@@ -61,12 +61,14 @@ class MotionPlanner:
         Returns:
             The (x,y) tuple of the nearest point in the tree
         """
-        points = np.array(list(self._nodes.keys()))
+        points = np.array([node.pos for node in G])
         kdtree = KDTree(points)
 
         d,i = kdtree.query(point, k=1)
 
-        return tuple(points[i])
+        for node in G:
+            if node.pos == i:
+                return node
         
     def get_sample_fn(self, body, joints, custom_limits={}, **kwargs):
         lower_limits, upper_limits = get_custom_limits(body, joints, custom_limits, circular_limits=CIRCULAR_LIMITS)
