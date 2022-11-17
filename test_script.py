@@ -89,45 +89,81 @@ while action_option != 2:
         for joint, pos in zip(arm_joint_names, joints_pos):
             print("    ", joint, ":", pos)
 
+        base_joints_pos = get_joint_positions(world.robot, world.base_joints)
+        print("Base position: X -", base_joints_pos[0], 'Y -', base_joints_pos[1], 'Z -', base_joints_pos[2])
+
     elif action_option == 2:
         continue
 
     elif action_option == 3:
-        joint_angles_str = input("Feed a 7 element tuple of joint angles: ")
-        joint_angles_str = joint_angles_str.split(',')
-        joint_angles = tuple([float(element) for element in joint_angles_str])
-        set_joint_positions(world.robot, world.arm_joints, joint_angles)
+        joint_set = input("Do you want to movethe arm (a) or the base (b)?")
+        joint_set = joint_set.strip()
+
+        if joint_set == 'a':
+            joint_angles_str = input("Feed a 7 element tuple of joint angles: ")
+            joint_angles_str = joint_angles_str.split(',')
+            joint_angles = tuple([float(element) for element in joint_angles_str])
+            set_joint_positions(world.robot, world.arm_joints, joint_angles)
+        elif joint_set == 'b':
+            joint_angles_str = input("Feed a 3 element tuple of x-pos, y-pos, theta for the base: ")
+            joint_angles_str = joint_angles_str.split(',')
+            joint_angles = tuple([float(element) for element in joint_angles_str])
+            set_joint_positions(world.robot, world.base_joints, joint_angles)
+
 
     elif action_option == 4:
         
         valid_joint_mvmt = False
 
         while not valid_joint_mvmt:
-            joint_num = input("Which joint do you want to move? ")
+            joint_set = input("Do you want to move the arm (a) or the base (b)?")
+            joint_set = joint_set.strip()
 
-            try:
-                joint_num = int(joint_num.strip())
-                assert joint_num <= 7
-                assert joint_num >= 1
-            except:
-                print("Invalid jointnumber entered")
+            if joint_set == 'a':
+                joint_num = input("Which joint do you want to move? ")
 
-            joint_angle = input("What angle would you like the joint at? ")
+                try:
+                    joint_num = int(joint_num.strip())
+                    assert joint_num <= 7
+                    assert joint_num >= 1
+                except:
+                    print("Invalid jointnumber entered")
 
-            try:
-                joint_angle = float(joint_angle.strip())
-            except:
-                print("Invalid joint angle entered")
+                joint_angle = input("What angle would you like the joint at? ")
 
-            joint_obj = joint_from_name(world.robot, ('panda_joint'+str(joint_num)))
+                try:
+                    joint_angle = float(joint_angle.strip())
+                except:
+                    print("Invalid joint angle entered")
 
-            # set_joint_position(world.robot, joint_obj, joint_angle)
+                joint_obj = joint_from_name(world.robot, ('panda_joint'+str(joint_num)))
 
-            try:
-                set_joint_position(world.robot, joint_obj, joint_angle)
-                valid_joint_mvmt = True
-            except:
-                print("Unable to set joint angle!")
+                # set_joint_position(world.robot, joint_obj, joint_angle)
+
+                try:
+                    set_joint_position(world.robot, joint_obj, joint_angle)
+                    valid_joint_mvmt = True
+                except:
+                    print("Unable to set joint angle!")
+            
+            elif joint_set == 'b':
+                joint = input("Do you want to move x, y or theta? ")
+                joint = joint.strip()
+
+                joint_angle = input("What value do you want the joint at? ")
+
+                try:
+                    joint_angle = float(joint_angle.strip())
+                except:
+                    print("Invalid joint angle entered")
+
+                joint_obj = joint_from_name(world.robot, joint)
+
+                try:
+                    set_joint_position(world.robot, joint_obj, joint_angle)
+                    valid_joint_mvmt = True
+                except:
+                    print("Unable to set joint angle!")
 
     
     elif action_option == 5:
