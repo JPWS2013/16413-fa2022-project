@@ -1,6 +1,6 @@
 import numpy as np
 from pddl_parser.PDDL import PDDL_Parser
-import os, sys, traceback
+import os, sys, traceback, math, time
 import MotionPlanner.RRT_star as mp
 
 SUBMODULE_PATH= os.path.abspath(os.path.join(os.getcwd(), 'padm-project-2022f'))
@@ -23,11 +23,11 @@ class ExecutionEngine():
         self.problem_filepath = problem_filepath
         self.domain_filepath = domain_filepath
         self.parser = self.init_parser()
-        self.world = self.create_world(use_gui = False)
+        self.world = self.create_world(use_gui=False)
 
         self.location_map = self.create_location_map()
 
-        self.motion_planner = mp.MotionPlanner(self.create_world(), self.location_map)
+        self.motion_planner = mp.MotionPlanner(self.world, self.location_map, d=0.75)
 
     def end(self):
         print("Destroying world object")
@@ -57,12 +57,28 @@ class ExecutionEngine():
         # move ('a', 'indigo_countertop', 'indigo_drawer_top')
         # placein ('a', 'potted_meat_can1', 'indigo_drawer_top')
         # close ('a', 'indigo_drawer_top')
-        print("Step 2: Executing actions in the activity plan...")
+        print("Step 2: Generating Motion Plan")
+        plan_dict = dict()
+
         for action in act_plan:
-            self.execute_action(action)
+            plan_dict[action.name] = self.execute_action(action)
+            break
             # start_pos, end_pos = get_positions()
             # motion_plan = self.mp.solve(start_pos, end_pos)
             # self.execute(motion_plan)
+
+        self.end()
+
+        self.world = self.create_world(use_gui=True)
+        
+        print("Step 3: Executing Plan")
+
+        for action, parameters in plan_dict.items():
+            if action == 'move':
+                base_path, arm_path = parameters
+                self.move_robot(base_path, arm_path)
+
+
 
     def execute_action(self, action):
         print("    - Executing action: ", action.name, action.parameters[1:])
@@ -72,8 +88,8 @@ class ExecutionEngine():
         if action.name == 'move':
                 arm, start_pos_name, end_pos_name = action.parameters
                 end_pos = self.location_map[end_pos_name]
-                path = self.motion_planner.solve(end_pos)
-                self.move_robot(path)
+                base_path, arm_path = self.motion_planner.plan(end_pos)
+                return (base_path, arm_path)
         #     parameters = action.parameters[1:]
         if action.name == 'open':
             self.world.open_door
@@ -84,11 +100,18 @@ class ExecutionEngine():
         #     case 'placein' | 'placeon':
         #         self.world.open_gripper
 
-    def move_robot(self, path):
-        for single_path in path:
-            #set the joint positions
-            raise Exception("Function to move the robot not implemented! Code will not execute further!")
-            continue
+    def move_robot(self, base_path, arm_path):
+        if base_path:
+            base_path.reverse()
+            for base_point in base_path:
+                set_joint_positions(self.world.robot, self.world.base_joints, (base_point+(-math.pi,)))
+                time.sleep(0.25)
+
+        arm_path.reverse()
+
+        for arm_point in arm_path:
+            set_joint_positions(self.world.robot, self.world.arm_joints, arm_point)
+            time.sleep(0.25)
 
     
     def get_activity_plan(self):
@@ -111,7 +134,7 @@ class ExecutionEngine():
         add_spam_box = lambda world, **kwargs: self.add_ycb(world, 'potted_meat_can', **kwargs)
         
         np.set_printoptions(precision=3, suppress=True)
-        world = World(use_gui=False)
+        world = World(use_gui=use_gui)
         sugar_box = add_sugar_box(world, idx=0, counter=1, pose2d=(-0.2, 0.65, np.pi / 4))
         spam_box = add_spam_box(world, idx=1, counter=0, pose2d=(0.2, 1.1, np.pi / 4))
         world._update_initial()
@@ -176,6 +199,7 @@ if __name__ == "__main__":
 
     try:
         engine.run()
+        wait_for_user()
         engine.end()
     except Exception as e:
         engine.end()
