@@ -53,7 +53,6 @@ spam_box = add_spam_box(world, idx=1, counter=0, pose2d=(0.2, 1.1, np.pi / 4))
 world._update_initial()
 tool_link = link_from_name(world.robot, 'panda_hand')
 joints = get_movable_joints(world.robot)
-<<<<<<< HEAD
 grasp_gen = get_grasps(world, sugar_box)
 for grasp in grasp_gen:
     print('GRASP', grasp)
@@ -71,7 +70,6 @@ wait_for_user()
 collisions = body_collision(world.robot, world.kitchen, max_distance=0.01)
 print('Collisions:')
 print(collisions)
-=======
 print("Movable joints: ", [get_joint_name(world.robot, joint) for joint in joints])
 print('Base Joints', [get_joint_name(world.robot, joint) for joint in world.base_joints])
 print('Arm Joints', [get_joint_name(world.robot, joint) for joint in world.arm_joints])
@@ -221,5 +219,4 @@ while action_option != 2:
     else:
         print(action_option, " is an invalid input option! Please try again.")
 
->>>>>>> ec5d08f15ea3dceb889db312bdd9382d6a820fd2
 wait_for_user()
