@@ -63,8 +63,9 @@ class ExecutionEngine():
         plan_dict = dict()
 
         for i, action in enumerate(act_plan):
-            plan_dict[action.name] = self.plan_action(action)
-            wait_for_user()
+            if i != 0:
+                plan_dict[action.name] = self.plan_action(action)
+                wait_for_user()
             
             if i >= 3:
                 break
