@@ -74,7 +74,7 @@ class ExecutionEngine():
 
         self.end()
 
-        self.world = self.create_world(use_gui=True)
+        self.world = self.create_world(use_gui=True, create_att=True)
         
         print("Step 3: Executing Plan")
 
@@ -114,19 +114,16 @@ class ExecutionEngine():
             base_path, arm_path = self.motion_planner.plan(end_pos)
             return (None, base_path, arm_path)
 
-        if action.name == 'open':
-            arm, open_target = action.parameters
-            target_x, target_y, target_z = self.location_map[open_target]
-            end_pos = ((target_x + self.drawer_mvmt_dist), target_y, target_z)
+        if (action.name == 'open') or (action.name == 'close'):
+            arm, target = action.parameters
+            target_x, target_y, target_z = self.location_map[target]
+            
+            if action.name == 'open':
+                end_pos = ((target_x + self.drawer_mvmt_dist), target_y, target_z)
+            else:
+                end_pos = ((target_x - self.drawer_mvmt_dist), target_y, target_z)
             base_path, arm_path = self.motion_planner.plan(end_pos)
-            return (open_target, base_path, arm_path)
-
-        if action.name == 'close':
-            arm, open_target = action.parameters
-            target_x, target_y, target_z = self.location_map[open_target]
-            end_pos = ((target_x - self.drawer_mvmt_dist), target_y, target_z)
-            base_path, arm_path = self.motion_planner.plan(end_pos)
-            return (open_target, base_path, arm_path)
+            return (target, base_path, arm_path)
 
         if action.name == 'grip':
             arm, target, location = action.parameters
