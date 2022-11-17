@@ -23,11 +23,11 @@ class ExecutionEngine():
         self.problem_filepath = problem_filepath
         self.domain_filepath = domain_filepath
         self.parser = self.init_parser()
-        self.world = self.create_world(use_gui=True)
+        self.world = self.create_world(use_gui=False)
 
         self.location_map = self.create_location_map()
 
-        self.motion_planner = mp.MotionPlanner(self.create_world(), self.location_map, d=0.75)
+        self.motion_planner = mp.MotionPlanner(self.world, self.location_map, d=0.75)
 
     def end(self):
         print("Destroying world object")
@@ -67,9 +67,9 @@ class ExecutionEngine():
             # motion_plan = self.mp.solve(start_pos, end_pos)
             # self.execute(motion_plan)
 
-        self.motion_planner.destroy_world()
+        self.end()
 
-        # self.world = self.create_world(use_gui=True)
+        self.world = self.create_world(use_gui=True)
         
         print("Step 3: Executing Plan")
 
@@ -105,13 +105,13 @@ class ExecutionEngine():
             base_path.reverse()
             for base_point in base_path:
                 set_joint_positions(self.world.robot, self.world.base_joints, (base_point+(-math.pi,)))
-                time.sleep(1)
+                time.sleep(0.25)
 
         arm_path.reverse()
 
         for arm_point in arm_path:
             set_joint_positions(self.world.robot, self.world.arm_joints, arm_point)
-            time.sleep(1)
+            time.sleep(0.25)
 
     
     def get_activity_plan(self):
@@ -199,6 +199,7 @@ if __name__ == "__main__":
 
     try:
         engine.run()
+        wait_for_user()
         engine.end()
     except Exception as e:
         engine.end()
