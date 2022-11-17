@@ -23,7 +23,7 @@ class ExecutionEngine():
         self.problem_filepath = problem_filepath
         self.domain_filepath = domain_filepath
         self.parser = self.init_parser()
-        self.world = self.create_world()
+        self.world = self.create_world(use_gui = False)
 
         self.location_map = self.create_location_map()
 
@@ -75,8 +75,8 @@ class ExecutionEngine():
                 path = self.motion_planner.solve(end_pos)
                 self.move_robot(path)
         #     parameters = action.parameters[1:]
-        #     case 'open':
-        #         self.world.open_door
+        if action.name == 'open':
+            self.world.open_door
         #     case 'close':
         #         self.world.close_door
         #     case 'grip':
