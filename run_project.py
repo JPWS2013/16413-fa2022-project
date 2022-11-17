@@ -23,7 +23,7 @@ class ExecutionEngine():
         self.problem_filepath = problem_filepath
         self.domain_filepath = domain_filepath
         self.parser = self.init_parser()
-        self.world = self.create_world(use_gui=False)
+        self.world = self.create_world(use_gui=True)
 
         self.location_map = self.create_location_map()
 
@@ -57,13 +57,28 @@ class ExecutionEngine():
         # move ('a', 'indigo_countertop', 'indigo_drawer_top')
         # placein ('a', 'potted_meat_can1', 'indigo_drawer_top')
         # close ('a', 'indigo_drawer_top')
-        print("Step 2: Executing actions in the activity plan...")
+        print("Step 2: Generating Motion Plan")
+        plan_dict = dict()
+
         for action in act_plan:
-            self.execute_action(action)
+            plan_dict[action.name] = self.execute_action(action)
             break
             # start_pos, end_pos = get_positions()
             # motion_plan = self.mp.solve(start_pos, end_pos)
             # self.execute(motion_plan)
+
+        self.motion_planner.destroy_world()
+
+        # self.world = self.create_world(use_gui=True)
+        
+        print("Step 3: Executing Plan")
+
+        for action, parameters in plan_dict.items():
+            if action == 'move':
+                base_path, arm_path = parameters
+                self.move_robot(base_path, arm_path)
+
+
 
     def execute_action(self, action):
         print("    - Executing action: ", action.name, action.parameters[1:])
@@ -74,7 +89,7 @@ class ExecutionEngine():
                 arm, start_pos_name, end_pos_name = action.parameters
                 end_pos = self.location_map[end_pos_name]
                 base_path, arm_path = self.motion_planner.plan(end_pos)
-                self.move_robot(base_path, arm_path)
+                return (base_path, arm_path)
         #     parameters = action.parameters[1:]
         #     case 'open':
         #         self.world.open_door

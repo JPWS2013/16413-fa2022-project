@@ -37,7 +37,11 @@ class MotionPlanner:
         self.base_goal_radius = base_goal_radius
 
         # goal_pos = translate_linearly(self.world, 1.2) 
-        set_joint_positions(self.world.robot, self.world.base_joints, (0.75, 0, -3.14))
+        # set_joint_positions(self.world.robot, self.world.base_joints, (0.75, 0, -3.14))
+    
+    def destroy_world(self):
+        # print("Destroying world object")
+        self.world.destroy()
     
     # Create a function to find the distance between two points
     def dist(self, a, b):
