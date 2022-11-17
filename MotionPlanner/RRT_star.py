@@ -155,6 +155,9 @@ class MotionPlanner:
 
 
     def solve(self, end_pos, body_to_plan):
+
+        path = None
+
         if body_to_plan == 'a':
             start_pos = get_joint_positions(self.world.robot, self.world.arm_joints)
         else:

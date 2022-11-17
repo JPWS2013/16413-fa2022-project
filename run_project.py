@@ -11,7 +11,7 @@ from src.world import World
 from src.utils import JOINT_TEMPLATE, BLOCK_SIZES, BLOCK_COLORS, COUNTERS, \
     ALL_JOINTS, LEFT_CAMERA, CAMERA_MATRIX, CAMERA_POSES, CAMERAS, compute_surface_aabb, BLOCK_TEMPLATE, name_from_type, GRASP_TYPES, SIDE_GRASP, joint_from_name, STOVES, TOP_GRASP, randomize, LEFT_DOOR, point_from_pose, translate_linearly
 
-from pybullet_tools.utils import set_pose, Pose, Point, Euler, multiply, get_pose, get_point, create_box, set_all_static, WorldSaver, create_plane, COLOR_FROM_NAME, stable_z_on_aabb, pairwise_collision, elapsed_time, get_aabb_extent, get_aabb, create_cylinder, set_point, get_function_name, wait_for_user, dump_world, set_random_seed, set_numpy_seed, get_random_seed, get_numpy_seed, set_camera, set_camera_pose, link_from_name, get_movable_joints, get_joint_name, CIRCULAR_LIMITS, get_custom_limits, set_joint_positions, interval_generator, get_link_pose, interpolate_poses, get_all_links, get_link_names, get_link_inertial_pose, body_from_name, get_pose, get_link_name, get_bodies, dump_body
+from pybullet_tools.utils import set_pose, Pose, Point, Euler, multiply, get_pose, get_point, create_box, set_all_static, WorldSaver, create_plane, COLOR_FROM_NAME, stable_z_on_aabb, pairwise_collision, elapsed_time, get_aabb_extent, get_aabb, create_cylinder, set_point, get_function_name, wait_for_user, dump_world, set_random_seed, set_numpy_seed, get_random_seed, get_numpy_seed, set_camera, set_camera_pose, link_from_name, get_movable_joints, get_joint_name, CIRCULAR_LIMITS, get_custom_limits, set_joint_positions, interval_generator, get_link_pose, interpolate_poses, get_all_links, get_link_names, get_link_inertial_pose, body_from_name, get_pose, get_link_name, get_bodies, dump_body, create_attachment
 
 # import MotionPlanner.RRT_star as mp
 import ActivityPlanner.ff_planner as ap
@@ -24,6 +24,8 @@ class ExecutionEngine():
         self.domain_filepath = domain_filepath
         self.parser = self.init_parser()
         self.world = self.create_world(use_gui=False)
+
+        self.drawer_mvmt_dist = 0.2
 
         self.location_map = self.create_location_map()
 
@@ -60,9 +62,12 @@ class ExecutionEngine():
         print("Step 2: Generating Motion Plan")
         plan_dict = dict()
 
-        for action in act_plan:
-            plan_dict[action.name] = self.execute_action(action)
-            break
+        for i, action in enumerate(act_plan):
+            plan_dict[action.name] = self.plan_action(action)
+            wait_for_user()
+            
+            if i >= 3:
+                break
             # start_pos, end_pos = get_positions()
             # motion_plan = self.mp.solve(start_pos, end_pos)
             # self.execute(motion_plan)
@@ -73,44 +78,89 @@ class ExecutionEngine():
         
         print("Step 3: Executing Plan")
 
-        for action, parameters in plan_dict.items():
+        self.execute_plan(plan_dict)
+
+    def execute_plan(plan_dict):
+        for action, target, base_path, arm_path in plan_dict.items():
+            print("Executing ", action)
+            wait_for_user()
             if action == 'move':
-                base_path, arm_path = parameters
+                base_path, arm_path = values
                 self.move_robot(base_path, arm_path)
+            
+            if (action == 'open') or (action == 'close'):
+                self.active_attachment = self.attachments[target]
+                self.move_robot(base_path, arm_path)
+                self.active_attachment = None
+
+            if action == 'grip':
+                if not ((base_path==None) and (arm_path==None)):
+                    self.move_robot(base_path, arm_path)
+
+                self.active_attachment = self.attachments[target]
+
+            if (action.name == 'placein') or (action.name == 'placeon'):
+                self.active_attachment = None
 
 
-
-    def execute_action(self, action):
-        print("    - Executing action: ", action.name, action.parameters[1:])
+    def plan_action(self, action):
+        print("    - Planning for action: ", action.name, action.parameters[1:])
 
         wait_for_user()
 
         if action.name == 'move':
-                arm, start_pos_name, end_pos_name = action.parameters
-                end_pos = self.location_map[end_pos_name]
-                base_path, arm_path = self.motion_planner.plan(end_pos)
-                return (base_path, arm_path)
-        #     parameters = action.parameters[1:]
+            arm, start_pos_name, end_pos_name = action.parameters
+            end_pos = self.location_map[end_pos_name]
+            base_path, arm_path = self.motion_planner.plan(end_pos)
+            return (None, base_path, arm_path)
+
         if action.name == 'open':
-            self.world.open_door
-        #     case 'close':
-        #         self.world.close_door
-        #     case 'grip':
-        #         self.world.close_gripper
-        #     case 'placein' | 'placeon':
-        #         self.world.open_gripper
+            arm, open_target = action.parameters
+            target_x, target_y, target_z = self.location_map[open_target]
+            end_pos = ((target_x + self.drawer_mvmt_dist), target_y, target_z)
+            base_path, arm_path = self.motion_planner.plan(end_pos)
+            return (open_target, base_path, arm_path)
+
+        if action.name == 'close':
+            arm, open_target = action.parameters
+            target_x, target_y, target_z = self.location_map[open_target]
+            end_pos = ((target_x - self.drawer_mvmt_dist), target_y, target_z)
+            base_path, arm_path = self.motion_planner.plan(end_pos)
+            return (open_target, base_path, arm_path)
+
+        if action.name == 'grip':
+            arm, target, location = action.parameters
+
+            target_pos = self.location_map[target]
+            location_pos = self.location_map[location]
+
+            if target_pos == location_pos:
+                return (target, None, None)
+                
+            else:
+                base_path, arm_path = self.motion_planner.plan(target_pos)
+                return(target, base_path, arm_path)
+
+        if (action.name == 'placein') or (action.name == 'placeon'):
+            arm, target, location = action.parameters
+            return (target, None, None)
+
 
     def move_robot(self, base_path, arm_path):
         if base_path:
             base_path.reverse()
             for base_point in base_path:
                 set_joint_positions(self.world.robot, self.world.base_joints, (base_point+(-math.pi,)))
+                if self.active_attachment:
+                    self.active_attachment.assign()
                 time.sleep(0.25)
 
         arm_path.reverse()
 
         for arm_point in arm_path:
             set_joint_positions(self.world.robot, self.world.arm_joints, arm_point)
+            if self.active_attachment:
+                self.active_attachment.assign()
             time.sleep(0.25)
 
     
@@ -128,7 +178,7 @@ class ExecutionEngine():
 
         return parser
 
-    def create_world(self,use_gui=False):
+    def create_world(self,use_gui=False, create_att=False):
         
         add_sugar_box = lambda world, **kwargs: self.add_ycb(world, 'sugar_box', **kwargs)
         add_spam_box = lambda world, **kwargs: self.add_ycb(world, 'potted_meat_can', **kwargs)
@@ -138,6 +188,17 @@ class ExecutionEngine():
         sugar_box = add_sugar_box(world, idx=0, counter=1, pose2d=(-0.2, 0.65, np.pi / 4))
         spam_box = add_spam_box(world, idx=1, counter=0, pose2d=(0.2, 1.1, np.pi / 4))
         world._update_initial()
+
+        if create_att:
+            self.attachments = dict()
+
+            self.attachments[sugar_box] = create_attachment(self.world.robot, link_from_name(world.robot, 'panda_hand'), self.world.get_body(sugar_box))
+
+            self.attachments[spam_box] = create_attachment(self.world.robot, link_from_name(world.robot, 'panda_hand'), self.world.get_body(spam_box))
+
+            self.attachments['indigo_drawer_top'] = create_attachment(self.world.robot, link_from_name(world.robot, 'panda_hand'), body_from_name('indigo_drawer_top'))
+
+        self.active_attachment = None
 
         return world
 
