@@ -7,7 +7,7 @@ SUBMODULE_PATH= os.path.abspath(os.path.join(os.getcwd(), 'padm-project-2022f'))
 sys.path.append(SUBMODULE_PATH)
 sys.path.extend(os.path.join(SUBMODULE_PATH, d) for d in ['pddlstream', 'ss-pybullet'])
 
-from pybullet_tools.utils import set_pose, Pose, Point, Euler, multiply, get_pose, get_point, create_box, set_all_static, WorldSaver, create_plane, COLOR_FROM_NAME, stable_z_on_aabb, pairwise_collision, elapsed_time, get_aabb_extent, get_aabb, create_cylinder, set_point, get_function_name, wait_for_user, dump_world, set_random_seed, set_numpy_seed, get_random_seed, get_numpy_seed, set_camera, set_camera_pose, link_from_name, get_movable_joints, get_joint_name, get_joint_positions, set_joint_positions, set_joint_position
+from pybullet_tools.utils import set_pose, Pose, Point, Euler, multiply, get_pose, get_point, create_box, set_all_static, WorldSaver, create_plane, COLOR_FROM_NAME, stable_z_on_aabb, pairwise_collision, elapsed_time, get_aabb_extent, get_aabb, create_cylinder, set_point, get_function_name, wait_for_user, dump_world, set_random_seed, set_numpy_seed, get_random_seed, get_numpy_seed, set_camera, set_camera_pose, link_from_name, get_movable_joints, get_joint_name, get_joint_positions, set_joint_positions, set_joint_position, create_attachment
 from pybullet_tools.utils import CIRCULAR_LIMITS, get_custom_limits, set_joint_positions, interval_generator, get_link_pose, interpolate_poses, get_collision_data, body_collision
 
 from pybullet_tools.ikfast.franka_panda.ik import PANDA_INFO, FRANKA_URDF
@@ -87,7 +87,8 @@ while action_option != 2:
         4. Set individual joint angles\n \
         5. Check for collisions\n \
         6. Play with random samples\n \
-        7. Move base forward\n")
+        7. Move base forward\n \
+        8. Play demo\n")
     
     try:
         action_option = int(action_option.strip())
@@ -215,6 +216,27 @@ while action_option != 2:
             except ValueError as e:
                 print("Invalid movement amount detected!")
                 continue
+
+    elif action_option == 8:
+
+        wait_for_user('Going to set base in front of sugar box')
+        point1_arm = (-0.1, 1.25, 0, -0.6, 0 ,3.04 , 0.741)
+        point1_base = (0.8, 0.5, -3.14)
+        set_joint_positions(world.robot, world.base_joints, point1_base)
+        set_joint_positions(world.robot, world.arm_joints, point1_arm)
+
+        wait_for_user('Grasping sugar box')
+        sugar_box_att = create_attachment(world.robot, link_from_name(world.robot, 'panda_hand'), world.get_body(sugar_box))
+
+        wait_for_user('Attempting to move sugar box')
+        point2_arm = (3.14, 1.25, 0, -0.6, 0 ,3.04 , 0.741)
+        set_joint_positions(world.robot, world.arm_joints, point2_arm)
+        sugar_box_att.assign()
+
+        wait_for_user('Attempting to move sugar box')
+        point2_arm = (0, 1.25, 0, -0.6, 0 ,3.04 , 0.741)
+        set_joint_positions(world.robot, world.arm_joints, point2_arm)
+        sugar_box_att.assign()
     
     else:
         print(action_option, " is an invalid input option! Please try again.")
