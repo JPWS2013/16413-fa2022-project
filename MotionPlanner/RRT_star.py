@@ -112,7 +112,7 @@ class MotionPlanner:
 
     def get_random_sample(self, body_to_plan, sample_goal = False):
         if body_to_plan == 'a':
-            rand_joints = self.get_random_sample()
+            rand_joints = self.get_random_arm_sample()
         elif body_to_plan == 'b':
             rand_joints = self.get_random_base_sample()[0:2]
 
