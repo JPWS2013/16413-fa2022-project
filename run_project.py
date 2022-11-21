@@ -11,7 +11,7 @@ from src.world import World
 from src.utils import JOINT_TEMPLATE, BLOCK_SIZES, BLOCK_COLORS, COUNTERS, \
     ALL_JOINTS, LEFT_CAMERA, CAMERA_MATRIX, CAMERA_POSES, CAMERAS, compute_surface_aabb, BLOCK_TEMPLATE, name_from_type, GRASP_TYPES, SIDE_GRASP, joint_from_name, STOVES, TOP_GRASP, randomize, LEFT_DOOR, point_from_pose, translate_linearly
 
-from pybullet_tools.utils import set_pose, Pose, Point, Euler, multiply, get_pose, get_point, create_box, set_all_static, WorldSaver, create_plane, COLOR_FROM_NAME, stable_z_on_aabb, pairwise_collision, elapsed_time, get_aabb_extent, get_aabb, create_cylinder, set_point, get_function_name, wait_for_user, dump_world, set_random_seed, set_numpy_seed, get_random_seed, get_numpy_seed, set_camera, set_camera_pose, link_from_name, get_movable_joints, get_joint_name, CIRCULAR_LIMITS, get_custom_limits, set_joint_positions, interval_generator, get_link_pose, interpolate_poses, get_all_links, get_link_names, get_link_inertial_pose, body_from_name, get_pose, get_link_name, get_bodies, dump_body, create_attachment, get_body_name
+from pybullet_tools.utils import set_pose, Pose, Point, Euler, multiply, get_pose, get_point, create_box, set_all_static, WorldSaver, create_plane, COLOR_FROM_NAME, stable_z_on_aabb, pairwise_collision, elapsed_time, get_aabb_extent, get_aabb, create_cylinder, set_point, get_function_name, wait_for_user, dump_world, set_random_seed, set_numpy_seed, get_random_seed, get_numpy_seed, set_camera, set_camera_pose, link_from_name, get_movable_joints, get_joint_name, CIRCULAR_LIMITS, get_custom_limits, set_joint_positions, interval_generator, get_link_pose, interpolate_poses, get_all_links, get_link_names, get_link_inertial_pose, body_from_name, get_pose, get_link_name, get_bodies, dump_body, create_attachment, get_body_name, get_joint_positions
 
 # import MotionPlanner.RRT_star as mp
 import ActivityPlanner.ff_planner as ap
@@ -28,6 +28,8 @@ class ExecutionEngine():
         self.drawer_mvmt_dist = 0.2
 
         self.location_map, self.object_map, self.current_pos = self.create_maps()
+
+        print("Object map: ", self.object_map)
 
         self.motion_planner = mp.MotionPlanner(self.world, d=0.75)
 
@@ -114,43 +116,43 @@ class ExecutionEngine():
             
             if end_pos_name in self.location_map.keys():
                 end_pos = self.location_map[end_pos_name]
-                path = self.motion_planner.plan(self.current_pos, end_pos, 'b')
+                base_path, arm_path = self.motion_planner.plan(self.current_pos, end_pos, 'b')
             # elif end_pos_name in self.object_map.keys():
             #     end_pos = self.object_map[end_pos_name, 'a']
             else:
                 raise ValueError(end_pos_name + " not in location map!")
             
-            self.current_pos = self.current_pos[0:7] + path[0]
+            self.current_pos = self.current_pos[0:7] + base_path[0]
             
-            return (None, path, None)
+            return (None, base_path, None)
 
         if (action.name == 'open') or (action.name == 'close'):
             arm, target = action.parameters
-            target_x, target_y, target_z = self.location_map[target]
+            target_x, target_y, target_z = self.object_map[target]
             
             if action.name == 'open':
                 end_pos = ((target_x + self.drawer_mvmt_dist), target_y, target_z)
             else:
                 end_pos = ((target_x - self.drawer_mvmt_dist), target_y, target_z)
-            path = self.motion_planner.plan(self.current_pos, end_pos, 'a')
+            base_path, arm_path = self.motion_planner.plan(self.current_pos, end_pos, 'a')
             
-            self.current_pos = path + self.current_pos[8:]
+            self.current_pos = arm_path[0] + self.current_pos[8:]
 
-            return (target, None, path)
+            return (target, None, arm_path)
 
         if action.name == 'grip':
             arm, target, location = action.parameters
 
-            target_pos = self.location_map[target]
+            target_pos = self.object_map[target]
             location_pos = self.location_map[location]
 
-            if target_pos == location_pos:
+            if self.current_pos[7:] == location_pos:
                 return (target, None, None)
                 
             else:
-                path = self.motion_planner.plan(self.current_pos, target_pos, 'a')
-                self.current_pos = path + self.current_pos[8:]
-                return(target, None, path)
+                base_path, arm_path = self.motion_planner.plan(self.current_pos, target_pos, 'a')
+                self.current_pos = arm_path + self.current_pos[8:]
+                return(target, None, arm_path)
 
         if (action.name == 'placein') or (action.name == 'placeon'):
             arm, target, location = action.parameters
@@ -237,18 +239,19 @@ class ExecutionEngine():
 
         # Get the 3D coordinates for all locations in the kitchen
         for loc in locations:
-            if loc == 'start_pos':
-                base_init = get_joint_positions(world.robot, world.base_joints)[0:2]
-                arm_init = get_joint_positions(world.robot, world.arm_joints)
-                location_map[loc] = arm_init + base_init
             try:
-                link = link_from_name(self.world.kitchen, loc)
-                coord_x, coord_y, coord_z = get_link_pose(self.world.kitchen, link)[0]
+                if loc == 'start_pos':
+                    base_init = get_joint_positions(self.world.robot, self.world.base_joints)[0:2]
+                    arm_init = get_joint_positions(self.world.robot, self.world.arm_joints)
+                    location_map[loc] = arm_init + base_init
+                else:
+                    link = link_from_name(self.world.kitchen, loc)
+                    coord_x, coord_y, coord_z = get_link_pose(self.world.kitchen, link)[0]
 
-                #For locations in the kitchen, park just in front of the counter which is about +0.8, leave y and z coordinates alone
-                location_map[loc] = (0.7, coord_y)
+                    #For locations in the kitchen, park just in front of the counter which is about +0.8, leave y and z coordinates alone
+                    location_map[loc] = (0.7, coord_y)
 
-                # print("Location ", loc, " has coordinates: ", location_map[loc])
+                    # print("Location ", loc, " has coordinates: ", location_map[loc])
 
             except ValueError as e:
                 print("Error getting coordinates for the following link: ", e, " Exiting!")
@@ -257,16 +260,17 @@ class ExecutionEngine():
         for each_item in items:
             try:
                 body = self.world.get_body(each_item)
-                target_coords = get_target_object_pose(body)
+                target_coords = self.get_target_object_pose(body)
                 print("Item ", each_item, "has coordinates ", target_coords)
                 object_map[each_item] = target_coords
             
             except ValueError as e:
                 print("Error getting coordinates for the following link: ", e, "Exiting!")
+                raise ValueError(e)
 
         return location_map, object_map, arm_init + base_init
 
-    def get_target_object_pose(body):
+    def get_target_object_pose(self, body):
         #TODO: Get the actual body pose from the world using get_pose(body)[0]
         #Example code:
         # x_backoff = (0.1*math.cos(euler_angles[2])) - (-0.025*math.sin(euler_angles[2]))

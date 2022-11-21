@@ -23,7 +23,7 @@ class TreeNode(object):
         self.cost = cost
 
 class MotionPlanner:
-    def __init__(self, world, iterations=10000, d=0.3, goal_int=20, goal_biasing=False, run_rrtstar=False, arm_goal_tolerance = 0.05, base_goal_radius = 0.2):
+    def __init__(self, world, iterations=10000, d=0.3, goal_int=20, goal_biasing=False, run_rrtstar=False, arm_goal_radius = 0.05, base_goal_radius = 0.2):
         self.world = world
         self.iterations = iterations
         self.d = d
@@ -111,7 +111,7 @@ class MotionPlanner:
     #     return collision_free
 
     def get_random_sample(self, body_to_plan, sample_goal = False):
-        if body_to_plan == 'a'"
+        if body_to_plan == 'a':
             rand_joints = self.get_random_sample()
         elif body_to_plan == 'b':
             rand_joints = self.get_random_base_sample()[0:2]
@@ -188,16 +188,16 @@ class MotionPlanner:
             #     wait_for_user()
             # wait_for_user()
             if (self.goal_biasing) and (i % self.goal_int == 0): # Every 20 iterations take the random sample from inside the goal area (goal biasing)
-                rand_joints = self.get_random_sample(sample_goal=True)
-                if body_to_plan == 'b':
-                    rand_joints = rand_joints + self.get_random_base_sample(sample_goal=True)[0:2]
+                x_rand = self.get_random_sample(body_to_plan, sample_goal=True)
+                # if body_to_plan == 'b':
+                #     rand_joints = rand_joints + self.get_random_base_sample(sample_goal=True)[0:2]
             else: # Else take the random sample from somewhere in the operating area
-                rand_joints = self.get_random_sample(body_to_plan)
+                x_rand = self.get_random_sample(body_to_plan)
             # print('Random sample obtained: ', rand_joints)
             # wait_for_user()
-            x_nearest = self.get_nearest_node(rand_joints, G)
+            x_nearest = self.get_nearest_node(x_rand, G)
             # print('X_nearest: ', x_nearest.pos)
-            x_new = self.steer(rand_joints, x_nearest, self.d) # Use the stter function to make x_new's position
+            x_new = self.steer(x_rand, x_nearest, self.d) # Use the stter function to make x_new's position
             # wait_for_user()
             #This runs rrt* instead of rrt
             if self.run_rrtstar:
@@ -229,6 +229,7 @@ class MotionPlanner:
                         path = self.retrive_path(obj)
                         break
         if path:
+            print("Path before returning: ", path)
             return path
         else:
             print('No path found')
@@ -249,9 +250,9 @@ class MotionPlanner:
         path_base = None
 
         if body_to_plan == 'b':
-            path_base = self.solve(start_pos[8:], end_pos, body_to_plan)
+            path_base = self.solve(start_pos[7:], end_pos, body_to_plan)
         
-        elif body_to_plan == 'a'    
+        elif body_to_plan == 'a':    
             path_arm = self.solve(start_pos[0:7], end_pos[0:7], body_to_plan)
 
         return path_base, path_arm
