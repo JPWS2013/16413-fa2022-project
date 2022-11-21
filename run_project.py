@@ -11,7 +11,7 @@ from src.world import World
 from src.utils import JOINT_TEMPLATE, BLOCK_SIZES, BLOCK_COLORS, COUNTERS, \
     ALL_JOINTS, LEFT_CAMERA, CAMERA_MATRIX, CAMERA_POSES, CAMERAS, compute_surface_aabb, BLOCK_TEMPLATE, name_from_type, GRASP_TYPES, SIDE_GRASP, joint_from_name, STOVES, TOP_GRASP, randomize, LEFT_DOOR, point_from_pose, translate_linearly
 
-from pybullet_tools.utils import set_pose, Pose, Point, Euler, multiply, get_pose, get_point, create_box, set_all_static, WorldSaver, create_plane, COLOR_FROM_NAME, stable_z_on_aabb, pairwise_collision, elapsed_time, get_aabb_extent, get_aabb, create_cylinder, set_point, get_function_name, wait_for_user, dump_world, set_random_seed, set_numpy_seed, get_random_seed, get_numpy_seed, set_camera, set_camera_pose, link_from_name, get_movable_joints, get_joint_name, CIRCULAR_LIMITS, get_custom_limits, set_joint_positions, interval_generator, get_link_pose, interpolate_poses, get_all_links, get_link_names, get_link_inertial_pose, body_from_name, get_pose, get_link_name, get_bodies, dump_body, create_attachment
+from pybullet_tools.utils import set_pose, Pose, Point, Euler, multiply, get_pose, get_point, create_box, set_all_static, WorldSaver, create_plane, COLOR_FROM_NAME, stable_z_on_aabb, pairwise_collision, elapsed_time, get_aabb_extent, get_aabb, create_cylinder, set_point, get_function_name, wait_for_user, dump_world, set_random_seed, set_numpy_seed, get_random_seed, get_numpy_seed, set_camera, set_camera_pose, link_from_name, get_movable_joints, get_joint_name, CIRCULAR_LIMITS, get_custom_limits, set_joint_positions, interval_generator, get_link_pose, interpolate_poses, get_all_links, get_link_names, get_link_inertial_pose, body_from_name, get_pose, get_link_name, get_bodies, dump_body, create_attachment, get_body_name
 
 # import MotionPlanner.RRT_star as mp
 import ActivityPlanner.ff_planner as ap
@@ -27,9 +27,9 @@ class ExecutionEngine():
 
         self.drawer_mvmt_dist = 0.2
 
-        self.location_map = self.create_location_map()
+        self.location_map, self.object_map = self.create_maps()
 
-        self.motion_planner = mp.MotionPlanner(self.world, self.location_map, d=0.75)
+        self.motion_planner = mp.MotionPlanner(self.world, d=0.75)
 
     def end(self):
         print("Destroying world object")
@@ -111,8 +111,13 @@ class ExecutionEngine():
 
         if action.name == 'move':
             arm, start_pos_name, end_pos_name = action.parameters
-            end_pos = self.location_map[end_pos_name]
-            base_path, arm_path = self.motion_planner.plan(end_pos)
+            
+            if end_pos_name in self.location_map.keys():
+                end_pos = self.location_map[end_pos_name]
+                base_path, arm_path = self.motion_planner.plan(end_pos, 'b')
+            elif end_pos_name in self.object_map.keys():
+                end_pos = self.object_map[end_pos_name, 'a']
+            
             return (None, base_path, arm_path)
 
         if (action.name == 'open') or (action.name == 'close'):
@@ -215,11 +220,12 @@ class ExecutionEngine():
         set_pose(body, pose)
         return pose
     
-    def create_location_map(self):
+    def create_maps(self):
         locations = self.parser.objects['location']
         items = self.parser.objects['item']
         
         location_map = dict()
+        object_map = dict()
 
         # Get the 3D coordinates for all locations in the kitchen
         for loc in locations:
@@ -227,9 +233,12 @@ class ExecutionEngine():
                 continue
             try:
                 link = link_from_name(self.world.kitchen, loc)
-                coord = get_link_pose(self.world.kitchen, link)[0]
-                # print("Location ", loc, " has coordinates: ", coord)
-                location_map[loc] = coord
+                coord_x, coord_y, coord_z = get_link_pose(self.world.kitchen, link)[0]
+
+                #For locations in the kitchen, park just in front of the counter which is about +0.8, leave y and z coordinates alone
+                location_map[loc] = (0.8, coord_y, coord_z)
+
+                # print("Location ", loc, " has coordinates: ", location_map[loc])
 
             except ValueError as e:
                 print("Error getting coordinates for the following link: ", e, " Exiting!")
@@ -238,13 +247,42 @@ class ExecutionEngine():
         for each_item in items:
             try:
                 body = self.world.get_body(each_item)
-                coord = get_pose(body)[0]
-                # print("Item ", each_item, "has coordinates ", coord)
+                target_coords = get_target_object_pose(body)
+                print("Item ", each_item, "has coordinates ", target_coords)
+                object_map[each_item] = target_coords
             
             except ValueError as e:
                 print("Error getting coordinates for the following link: ", e, "Exiting!")
 
-        return location_map
+        return location_map, object_map
+
+    def get_target_object_pose(body):
+        #TODO: Get the actual body pose from the world using get_pose(body)[0]
+        #Example code:
+        # x_backoff = (0.1*math.cos(euler_angles[2])) - (-0.025*math.sin(euler_angles[2]))
+        # y_backoff = (0.1*math.sin(euler_angles[2])) + (-0.025*math.cos(euler_angles[2]))
+
+        # euler_angles = (euler_angles[0], (-0.5*math.pi), euler_angles[2])
+        # coord = ((coord[0]+x_backoff), (coord[1]+y_backoff), (coord[2]+0.05)) #Raise z by 0.05 to be at the right height to grip object
+        # pose = (coord, quat_from_euler(euler_angles))
+        # conf = next(closest_inverse_kinematics(world.robot, PANDA_INFO, tool_link, pose, max_time=0.05), None)
+
+
+        name = get_body_name(body)
+
+        if "potted_meat" in name:
+            return (1.465, -1.727, -1.754, -2.252, -0.022, 2.948, -1.004, 0.8, 1.0, -3.14)
+        
+        elif "sugar_box" in name:
+            return (-0.788, 1.423, -1.229, -1.052, -0.624, 2.531, 2.740, 0.7, 0.65, -1.57)
+        
+        else:
+            raise ValueError(name)
+
+
+
+
+        
 
     def execute(motion_plan):
         pass

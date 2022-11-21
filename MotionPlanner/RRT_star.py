@@ -23,17 +23,16 @@ class TreeNode(object):
         self.cost = cost
 
 class MotionPlanner:
-    def __init__(self, world, location_map, iterations=10000, d=0.3, goal_int=20, goal_biasing=False, run_rrtstar=False, arm_goal_radius = 0.4, base_goal_radius = 0.7):
+    def __init__(self, world, iterations=10000, d=0.3, goal_int=20, goal_biasing=False, run_rrtstar=False, arm_goal_tolerance = 0.05, base_goal_radius = 0.2):
         self.world = world
-        self.location_map = location_map
         self.iterations = iterations
         self.d = d
         self.goal_int = goal_int
         self.goal_biasing = goal_biasing
         self.run_rrtstar = run_rrtstar
-        self.get_random_sample = self.get_sample_fn(self.world.robot, self.world.arm_joints)
+        self.get_random_arm_sample = self.get_sample_fn(self.world.robot, self.world.arm_joints)
         self.get_random_base_sample = self.get_sample_fn(self.world.robot, self.world.base_joints)
-        self.goal_radius = arm_goal_radius
+        self.arm_goal_tolerance = arm_goal_radius
         self.base_goal_radius = base_goal_radius
 
         # goal_pos = translate_linearly(self.world, 1.2) 
@@ -111,6 +110,14 @@ class MotionPlanner:
     # def collision_free(self, a, b):
     #     return collision_free
 
+    def get_random_sample(self, body_to_plan):
+        if body_to_plan == 'a'"
+            rand_joints = self.get_random_sample()
+        elif body_to_plan == 'b':
+            rand_joints = self.get_random_base_sample()[0:2]
+
+        return rand_joints
+
     def obst_free(self, x_nearest, x_new, body_to_plan):
         # collisions = body_collision(self.world.robot, self.world.kitchen, max_distance=0.01)
         # if not collisions:
@@ -119,10 +126,12 @@ class MotionPlanner:
         #     collisions = body_collision(self.world.robot, self.world.get_body('sugar_box0'), max_distance=0.01)
         if body_to_plan == 'a':
             set_joint_positions(self.world.robot, self.world.arm_joints, x_new)
-        else:
-            theta = get_joint_positions(self.world.robot, self.world.base_joints)[2]
-            set_joint_positions(self.world.robot, self.world.base_joints, (x_new[len(x_new)-2:len(x_new)]) + (theta,))
-            set_joint_positions(self.world.robot, self.world.arm_joints, x_new[0:7])
+        elif body_to_plan == 'b':
+            # theta = get_joint_positions(self.world.robot, self.world.base_joints)[2]
+            theta = -1.57
+            set_joint_positions(self.world.robot, self.world.base_joints, (x_new[:2]) + (theta,))
+            # set_joint_positions(self.world.robot, self.world.arm_joints, x_new[0:7])
+        
         return not body_collision(self.world.robot, self.world.kitchen)
 
     def retrive_path(self, x_new):
@@ -137,23 +146,26 @@ class MotionPlanner:
         print('Goal: ', end_pos)
         print('x_new:', x_new)
         # set_joint_positions(self.world.robot, self.world.arm_joints, x_new)
-        x_new_cart = get_link_pose(self.world.robot, link_from_name(self.world.robot, 'panda_hand'))[0]
-        print('x_new_cart: ', x_new_cart)
-        diff = np.linalg.norm(np.array(x_new_cart) - np.array(end_pos))
-        print('Diff =', diff)
-        if abs(diff) < self.goal_radius:
+        # x_new_cart = get_link_pose(self.world.robot, link_from_name(self.world.robot, 'panda_hand'))[0]
+        # print('x_new_cart: ', x_new_cart)
+
+        if body_to_plan == 'a':
+            for sample_j_angle, goal_j_angle in zip(x_new, end_pos):
+                if abs(sample_j_angle-goal_j_angle)>self.arm_goal_tolerance:
+                    return False
             return True
-        else:
-            return False
 
+        elif body_to_plan == 'b':
+            diff = np.linalg.norm(np.array(x_new) - np.array(end_pos))
+            # print('Diff =', diff)
+            if abs(diff) < self.base_goal_radius:
+                return True
+            else:
+                return False
 
-    def solve(self, end_pos, body_to_plan):
+    def solve(self, start_pos, end_pos, body_to_plan):
 
         path = None
-
-        start_pos = get_joint_positions(self.world.robot, self.world.arm_joints)
-        if body_to_plan == 'b':
-            start_pos = start_pos + get_joint_positions(self.world.robot, self.world.base_joints)[0:2]
 
         V = [start_pos] # Create a list of node positions
         G = [TreeNode(start_pos, cost=0, parent=None)] # Create a list of TreeNode objects
@@ -166,23 +178,21 @@ class MotionPlanner:
 
         for i in range(self.iterations): # Iterate
             print("i=", i)
-            if i%1000 == 0:
-                if cart_pos_t:
-                    points = [(x, y) for x,y,z in cart_pos_t]
-                    x_t, y_t = zip(*points)
-                    plt.scatter(y_t, x_t, c='b')
-                    plt.scatter(end_pos[1], end_pos[0], c='r')
-                    plt.show()
-                wait_for_user()
+            # if i%1000 == 0:
+            #     if cart_pos_t:
+            #         points = [(x, y) for x,y,z in cart_pos_t]
+            #         x_t, y_t = zip(*points)
+            #         plt.scatter(y_t, x_t, c='b')
+            #         plt.scatter(end_pos[1], end_pos[0], c='r')
+            #         plt.show()
+            #     wait_for_user()
             # wait_for_user()
             if (self.goal_biasing) and (i % self.goal_int == 0): # Every 20 iterations take the random sample from inside the goal area (goal biasing)
                 rand_joints = self.get_random_sample(sample_goal=True)
                 if body_to_plan == 'b':
                     rand_joints = rand_joints + self.get_random_base_sample(sample_goal=True)[0:2]
             else: # Else take the random sample from somewhere in the operating area
-                rand_joints = self.get_random_sample()
-                if body_to_plan == 'b':
-                    rand_joints = rand_joints + self.get_random_base_sample()[0:2]
+                rand_joints = self.get_random_sample(body_to_plan)
             # print('Random sample obtained: ', rand_joints)
             # wait_for_user()
             x_nearest = self.get_nearest_node(rand_joints, G)
@@ -224,16 +234,28 @@ class MotionPlanner:
             print('No path found')
             return None
 
-    def plan(self, end_pos):
-        hand_pos_vec = np.array(get_link_pose(self.world.robot, link_from_name(self.world.robot, 'panda_hand'))[0])
+    def plan(self, base_start=None, arm_start=None, base_goal=None, arm_goal=None):
+        # hand_pos_vec = np.array(get_link_pose(self.world.robot, link_from_name(self.world.robot, 'panda_hand'))[0])
 
-        end_pos_vec = np.array(end_pos)
+        # end_pos_vec = np.array(end_pos)
 
-        if np.linalg.norm(end_pos_vec - hand_pos_vec) > self.base_goal_radius:
-            print("Arm can't reach the goal. Moving the base first")
-            path_base = self.solve(end_pos, 'b')
+        # if np.linalg.norm(end_pos_vec - hand_pos_vec) > self.base_goal_radius:
+        #     print("Arm can't reach the goal. Moving the base first")
+        #     path_base = self.solve(end_pos, 'b')
             
-            return None, path_arm
+        #     return None, path_arm
+
+        if base_goal:
+            path_base = self.solve(base_start[0:2], base_goal[0:2], 'b')
+        else:
+            path_base = None
+        
+        if arm_goal:    
+            path_arm = self.solve(arm_start, arm_goal, 'a')
+        else:
+            path_arm = None
+
+        return path_base, path_arm
 
 
 
