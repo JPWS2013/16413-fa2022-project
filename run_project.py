@@ -260,7 +260,7 @@ class ExecutionEngine():
         for each_item in items:
             try:
                 body = self.world.get_body(each_item)
-                target_coords = self.get_target_object_pose(body)
+                target_coords = self.get_target_object_pose(body, each_item)
                 print("Item ", each_item, "has coordinates ", target_coords)
                 object_map[each_item] = target_coords
             
@@ -270,7 +270,7 @@ class ExecutionEngine():
 
         return location_map, object_map, arm_init + base_init
 
-    def get_target_object_pose(self, body):
+    def get_target_object_pose(self, body, name):
         #TODO: Get the actual body pose from the world using get_pose(body)[0]
         #Example code:
         # x_backoff = (0.1*math.cos(euler_angles[2])) - (-0.025*math.sin(euler_angles[2]))
@@ -282,7 +282,7 @@ class ExecutionEngine():
         # conf = next(closest_inverse_kinematics(world.robot, PANDA_INFO, tool_link, pose, max_time=0.05), None)
 
 
-        name = get_body_name(body)
+        # name = get_body_name(body)
 
         if "potted_meat" in name:
             return (1.465, -1.727, -1.754, -2.252, -0.022, 2.948, -1.004, 0.8, 1.0)
