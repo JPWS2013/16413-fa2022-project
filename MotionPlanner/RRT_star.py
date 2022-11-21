@@ -110,7 +110,7 @@ class MotionPlanner:
     # def collision_free(self, a, b):
     #     return collision_free
 
-    def get_random_sample(self, body_to_plan):
+    def get_random_sample(self, body_to_plan, sample_goal = False):
         if body_to_plan == 'a'"
             rand_joints = self.get_random_sample()
         elif body_to_plan == 'b':
@@ -129,7 +129,7 @@ class MotionPlanner:
         elif body_to_plan == 'b':
             # theta = get_joint_positions(self.world.robot, self.world.base_joints)[2]
             theta = -1.57
-            set_joint_positions(self.world.robot, self.world.base_joints, (x_new[:2]) + (theta,))
+            set_joint_positions(self.world.robot, self.world.base_joints, (x_new + (theta,)))
             # set_joint_positions(self.world.robot, self.world.arm_joints, x_new[0:7])
         
         return not body_collision(self.world.robot, self.world.kitchen)
@@ -234,7 +234,7 @@ class MotionPlanner:
             print('No path found')
             return None
 
-    def plan(self, base_start=None, arm_start=None, base_goal=None, arm_goal=None):
+    def plan(self, start_pos, end_pos, body_to_plan):
         # hand_pos_vec = np.array(get_link_pose(self.world.robot, link_from_name(self.world.robot, 'panda_hand'))[0])
 
         # end_pos_vec = np.array(end_pos)
@@ -244,16 +244,15 @@ class MotionPlanner:
         #     path_base = self.solve(end_pos, 'b')
             
         #     return None, path_arm
-
-        if base_goal:
-            path_base = self.solve(base_start[0:2], base_goal[0:2], 'b')
-        else:
-            path_base = None
         
-        if arm_goal:    
-            path_arm = self.solve(arm_start, arm_goal, 'a')
-        else:
-            path_arm = None
+        path_arm = None
+        path_base = None
+
+        if body_to_plan == 'b':
+            path_base = self.solve(start_pos[8:], end_pos, body_to_plan)
+        
+        elif body_to_plan == 'a'    
+            path_arm = self.solve(start_pos[0:7], end_pos[0:7], body_to_plan)
 
         return path_base, path_arm
 
