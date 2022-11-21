@@ -27,7 +27,7 @@ class ExecutionEngine():
 
         self.drawer_mvmt_dist = 0.2
 
-        self.location_map, self.object_map = self.create_maps()
+        self.location_map, self.object_map, self.current_pos = self.create_maps()
 
         self.motion_planner = mp.MotionPlanner(self.world, d=0.75)
 
@@ -114,11 +114,15 @@ class ExecutionEngine():
             
             if end_pos_name in self.location_map.keys():
                 end_pos = self.location_map[end_pos_name]
-                base_path, arm_path = self.motion_planner.plan(end_pos, 'b')
-            elif end_pos_name in self.object_map.keys():
-                end_pos = self.object_map[end_pos_name, 'a']
+                path = self.motion_planner.plan(self.current_pos, end_pos, 'b')
+            # elif end_pos_name in self.object_map.keys():
+            #     end_pos = self.object_map[end_pos_name, 'a']
+            else:
+                raise ValueError(end_pos_name + " not in location map!")
             
-            return (None, base_path, arm_path)
+            self.current_pos = self.current_pos[0:7] + path[0]
+            
+            return (None, path, None)
 
         if (action.name == 'open') or (action.name == 'close'):
             arm, target = action.parameters
@@ -128,8 +132,11 @@ class ExecutionEngine():
                 end_pos = ((target_x + self.drawer_mvmt_dist), target_y, target_z)
             else:
                 end_pos = ((target_x - self.drawer_mvmt_dist), target_y, target_z)
-            base_path, arm_path = self.motion_planner.plan(end_pos)
-            return (target, base_path, arm_path)
+            path = self.motion_planner.plan(self.current_pos, end_pos, 'a')
+            
+            self.current_pos = path + self.current_pos[8:]
+
+            return (target, None, path)
 
         if action.name == 'grip':
             arm, target, location = action.parameters
@@ -141,8 +148,9 @@ class ExecutionEngine():
                 return (target, None, None)
                 
             else:
-                base_path, arm_path = self.motion_planner.plan(target_pos)
-                return(target, base_path, arm_path)
+                path = self.motion_planner.plan(self.current_pos, target_pos, 'a')
+                self.current_pos = path + self.current_pos[8:]
+                return(target, None, path)
 
         if (action.name == 'placein') or (action.name == 'placeon'):
             arm, target, location = action.parameters
@@ -230,13 +238,15 @@ class ExecutionEngine():
         # Get the 3D coordinates for all locations in the kitchen
         for loc in locations:
             if loc == 'start_pos':
-                continue
+                base_init = get_joint_positions(world.robot, world.base_joints)[0:2]
+                arm_init = get_joint_positions(world.robot, world.arm_joints)
+                location_map[loc] = arm_init + base_init
             try:
                 link = link_from_name(self.world.kitchen, loc)
                 coord_x, coord_y, coord_z = get_link_pose(self.world.kitchen, link)[0]
 
                 #For locations in the kitchen, park just in front of the counter which is about +0.8, leave y and z coordinates alone
-                location_map[loc] = (0.8, coord_y, coord_z)
+                location_map[loc] = (0.7, coord_y)
 
                 # print("Location ", loc, " has coordinates: ", location_map[loc])
 
@@ -254,7 +264,7 @@ class ExecutionEngine():
             except ValueError as e:
                 print("Error getting coordinates for the following link: ", e, "Exiting!")
 
-        return location_map, object_map
+        return location_map, object_map, arm_init + base_init
 
     def get_target_object_pose(body):
         #TODO: Get the actual body pose from the world using get_pose(body)[0]
@@ -271,10 +281,10 @@ class ExecutionEngine():
         name = get_body_name(body)
 
         if "potted_meat" in name:
-            return (1.465, -1.727, -1.754, -2.252, -0.022, 2.948, -1.004, 0.8, 1.0, -3.14)
+            return (1.465, -1.727, -1.754, -2.252, -0.022, 2.948, -1.004, 0.8, 1.0)
         
         elif "sugar_box" in name:
-            return (-0.788, 1.423, -1.229, -1.052, -0.624, 2.531, 2.740, 0.7, 0.65, -1.57)
+            return (-0.788, 1.423, -1.229, -1.052, -0.624, 2.531, 2.740, 0.7, 0.65)
         
         else:
             raise ValueError(name)
