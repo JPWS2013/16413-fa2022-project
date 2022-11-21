@@ -1,14 +1,19 @@
 import os
 import sys
-import argparse
+import argparse, math
 import numpy as np
 
 SUBMODULE_PATH= os.path.abspath(os.path.join(os.getcwd(), 'padm-project-2022f'))
 sys.path.append(SUBMODULE_PATH)
 sys.path.extend(os.path.join(SUBMODULE_PATH, d) for d in ['pddlstream', 'ss-pybullet'])
 
-from pybullet_tools.utils import set_pose, Pose, Point, Euler, multiply, get_pose, get_point, create_box, set_all_static, WorldSaver, create_plane, COLOR_FROM_NAME, stable_z_on_aabb, pairwise_collision, elapsed_time, get_aabb_extent, get_aabb, create_cylinder, set_point, get_function_name, wait_for_user, dump_world, set_random_seed, set_numpy_seed, get_random_seed, get_numpy_seed, set_camera, set_camera_pose, link_from_name, get_movable_joints, get_joint_name, get_joint_positions, set_joint_positions, set_joint_position, create_attachment
-from pybullet_tools.utils import CIRCULAR_LIMITS, get_custom_limits, set_joint_positions, interval_generator, get_link_pose, interpolate_poses, get_collision_data, body_collision
+from pybullet_tools.utils import set_pose, Pose, Point, Euler, multiply, get_pose, get_point, create_box, set_all_static, WorldSaver, create_plane, COLOR_FROM_NAME, stable_z_on_aabb, pairwise_collision, elapsed_time, get_aabb_extent, get_aabb, create_cylinder, set_point, get_function_name, wait_for_user, dump_world, set_random_seed, set_numpy_seed, get_random_seed, get_numpy_seed, set_camera, set_camera_pose, link_from_name, get_movable_joints, get_joint_name, get_joint_positions, set_joint_positions, set_joint_position, create_attachment, get_euler, quat_from_euler
+
+from pybullet_tools.utils import CIRCULAR_LIMITS, get_custom_limits, set_joint_positions, interval_generator, get_link_pose, interpolate_poses, get_collision_data, body_collision, Pose, Point
+
+from pybullet_tools.ikfast.ikfast import get_ik_joints, closest_inverse_kinematics
+from pybullet_tools.ikfast.franka_panda.ik import PANDA_INFO, FRANKA_URDF
+
 
 from pybullet_tools.ikfast.franka_panda.ik import PANDA_INFO, FRANKA_URDF
 from pybullet_tools.ikfast.ikfast import get_ik_joints, closest_inverse_kinematics
@@ -88,7 +93,8 @@ while action_option != 2:
         5. Check for collisions\n \
         6. Play with random samples\n \
         7. Move base forward\n \
-        8. Play demo\n")
+        8. Play demo\n \
+        9. Locate objects and get joint angles\n")
     
     try:
         action_option = int(action_option.strip())
@@ -237,6 +243,63 @@ while action_option != 2:
         point2_arm = (0, 1.25, 0, -0.6, 0 ,3.04 , 0.741)
         set_joint_positions(world.robot, world.arm_joints, point2_arm)
         sugar_box_att.assign()
+
+    elif action_option == 9:
+
+        user_obj = input("What object would you like to locate? ")
+        user_obj = user_obj.strip()
+
+        try:
+            link = link_from_name(world.kitchen, user_obj)
+            pose = get_link_pose(world.kitchen, link)
+            print("Location ", user_obj, " has coordinates: ", pose)
+
+        except ValueError as e:
+            try:
+                body = world.get_body(user_obj)
+                coord = get_pose(body)[0]
+                euler_angles = get_euler(body)
+                print("Object ", user_obj, " has coordinates: ", coord)
+                print("Euler angles for this object are: ", euler_angles)
+            
+            except ValueError as e:
+                print("Error getting coordinates for the following link: ", e, " Exiting!")
+                sys.exit(1)
+
+        tool_link = link_from_name(world.robot, 'panda_hand')
+        
+        user_selection = ''
+        # tool_backoff_dist = 0.1 #Distance to back the tool off the object
+        x_backoff = (-0.01*math.cos(euler_angles[2])) - (-0.15*math.sin(euler_angles[2]))
+        y_backoff = (-0.01*math.sin(euler_angles[2])) + (-0.15*math.cos(euler_angles[2]))
+
+        euler_angles = (euler_angles[0], (-0.5*math.pi), (-math.pi/4))
+        coord = ((coord[0]+x_backoff), (coord[1]+y_backoff), (coord[2]+0.1)) #Raise z by 0.05 to be at the right height to grip object
+        pose = (coord, quat_from_euler(euler_angles))
+
+        print("Setting hand pose to: ", pose)
+
+        while user_selection != 'end':
+            
+            success = False
+
+            for i in range(10):
+                conf = next(closest_inverse_kinematics(world.robot, PANDA_INFO, tool_link, pose, max_time=0.05), None)
+
+                if conf != None:
+                    success = True
+                    break
+
+                if i == 9:
+                    print("Unable to run inverse kinematics successfully!")
+
+            if success:
+                print("The joint angles to achieve this pose is: ", conf)
+
+                set_joint_positions(world.robot, world.arm_joints, conf)
+
+            user_selection = input("End or continue? ")
+            user_selection.strip()
     
     else:
         print(action_option, " is an invalid input option! Please try again.")
