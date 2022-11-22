@@ -65,12 +65,12 @@ class ExecutionEngine():
         plan_dict = dict()
 
         for i, action in enumerate(act_plan):
-            if i != 0:
-                plan_dict[action.name] = self.plan_action(action)
-                wait_for_user()
             
-            if i >= 3:
-                break
+            plan_dict[action.name+str(action.parameters)] = self.plan_action(action)
+            wait_for_user()
+            
+            # if i >= 2:
+            #     break
             # start_pos, end_pos = get_positions()
             # motion_plan = self.mp.solve(start_pos, end_pos)
             # self.execute(motion_plan)
@@ -78,38 +78,41 @@ class ExecutionEngine():
         self.end()
 
         self.world = self.create_world(use_gui=True, create_att=True)
+
+        print("Plan dict: ", plan_dict)
         
         print("Step 3: Executing Plan")
 
         self.execute_plan(plan_dict)
 
-    def execute_plan(plan_dict):
-        for action, target, base_path, arm_path in plan_dict.items():
+    def execute_plan(self, plan_dict):
+        for action, (target, base_path, arm_path) in plan_dict.items():
             print("Executing ", action)
             wait_for_user()
-            if action == 'move':
-                base_path, arm_path = values
+            if 'move' in action.lower():
+                # base_path, arm_path = values
                 self.move_robot(base_path, arm_path)
             
-            if (action == 'open') or (action == 'close'):
+            elif ('open' in action.lower()) or ('close' in action.lower()):
                 self.active_attachment = self.attachments[target]
                 self.move_robot(base_path, arm_path)
                 self.active_attachment = None
 
-            if action == 'grip':
+            elif 'grip' in action.lower():
                 if not ((base_path==None) and (arm_path==None)):
                     self.move_robot(base_path, arm_path)
 
                 self.active_attachment = self.attachments[target]
 
-            if (action.name == 'placein') or (action.name == 'placeon'):
+            elif ('placein' in action) or ('placeon' in action):
                 self.active_attachment = None
+
+            else:
+                raise ValueError("Action does not match pre-mapped actions in execute_plan function")
 
 
     def plan_action(self, action):
         print("    - Planning for action: ", action.name, action.parameters[1:])
-
-        wait_for_user()
 
         if action.name == 'move':
             arm, start_pos_name, end_pos_name = action.parameters
@@ -162,19 +165,30 @@ class ExecutionEngine():
     def move_robot(self, base_path, arm_path):
         if base_path:
             base_path.reverse()
-            for base_point in base_path:
-                set_joint_positions(self.world.robot, self.world.base_joints, (base_point+(-math.pi,)))
+            current_pos = base_path.pop(0)
+            current_pos = (current_pos)+(-math.pi,)
+            for next_base_point in base_path:
+                print("Current point: ", current_pos)
+                print("Next point: ", next_base_point)
+                dir_vec = np.array(next_base_point)- np.array(current_pos[:2])
+                delta_theta = math.tan(dir_vec[1]/dir_vec[0])
+                new_theta = current_pos[2] + delta_theta
+                set_joint_positions(self.world.robot, self.world.base_joints, (next_base_point+(new_theta,)))
                 if self.active_attachment:
                     self.active_attachment.assign()
-                time.sleep(0.25)
 
-        arm_path.reverse()
+                current_pos = next_base_point + (new_theta,)
+                time.sleep(1)
+                wait_for_user()
 
-        for arm_point in arm_path:
-            set_joint_positions(self.world.robot, self.world.arm_joints, arm_point)
-            if self.active_attachment:
-                self.active_attachment.assign()
-            time.sleep(0.25)
+        if arm_path:
+            arm_path.reverse()
+
+            for arm_point in arm_path:
+                set_joint_positions(self.world.robot, self.world.arm_joints, arm_point)
+                if self.active_attachment:
+                    self.active_attachment.assign()
+                time.sleep(1)
 
     
     def get_activity_plan(self):
@@ -209,7 +223,7 @@ class ExecutionEngine():
 
             self.attachments[spam_box] = create_attachment(self.world.robot, link_from_name(world.robot, 'panda_hand'), self.world.get_body(spam_box))
 
-            self.attachments['indigo_drawer_top'] = create_attachment(self.world.robot, link_from_name(world.robot, 'panda_hand'), body_from_name('indigo_drawer_top'))
+            # self.attachments['indigo_drawer_top'] = create_attachment(self.world.robot, link_from_name(world.robot, 'panda_hand'), body_from_name('indigo_drawer_top'))
 
         self.active_attachment = None
 
