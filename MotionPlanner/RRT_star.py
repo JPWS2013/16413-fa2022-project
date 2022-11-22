@@ -23,7 +23,7 @@ class TreeNode(object):
         self.cost = cost
 
 class MotionPlanner:
-    def __init__(self, world, iterations=10000, d=0.3, goal_int=20, goal_biasing=False, run_rrtstar=False, arm_goal_radius = 0.05, base_goal_radius = 0.2):
+    def __init__(self, world, iterations=10000, d=0.3, goal_int=20, goal_biasing=True, run_rrtstar=False, arm_goal_radius = 0.2, base_goal_radius = 0.1):
         self.world = world
         self.iterations = iterations
         self.d = d
@@ -32,6 +32,8 @@ class MotionPlanner:
         self.run_rrtstar = run_rrtstar
         self.get_random_arm_sample = self.get_sample_fn(self.world.robot, self.world.arm_joints)
         self.get_random_base_sample = self.get_sample_fn(self.world.robot, self.world.base_joints)
+        self.random_goal_sample = None
+        # self.random_base_goal_sample = None
         self.arm_goal_tolerance = arm_goal_radius
         self.base_goal_radius = base_goal_radius
 
@@ -111,10 +113,18 @@ class MotionPlanner:
     #     return collision_free
 
     def get_random_sample(self, body_to_plan, sample_goal = False):
-        if body_to_plan == 'a':
-            rand_joints = self.get_random_arm_sample()
-        elif body_to_plan == 'b':
-            rand_joints = self.get_random_base_sample()[0:2]
+        if not sample_goal: 
+            if body_to_plan == 'a':
+                rand_joints = self.get_random_arm_sample()
+            elif body_to_plan == 'b':
+                rand_joints = self.get_random_base_sample()[0:2]
+
+        else:
+            if body_to_plan == 'a':
+                rand_joints = self.random_goal_sample()
+            elif body_to_plan == 'b':
+                rand_joints = self.random_goal_sample()[0:2]
+                
 
         return rand_joints
 
@@ -163,7 +173,32 @@ class MotionPlanner:
             else:
                 return False
 
+    def create_goal_limits(self, end_pos, body_to_plan):
+        limits_dict = dict()
+
+        if body_to_plan == 'a':
+            for joint, target_angle in zip(self.world.arm_joints, end_pos):
+                limits_dict[joint] = ((target_angle-self.arm_goal_tolerance), (target_angle + self.arm_goal_tolerance))
+
+        elif body_to_plan == 'b':
+            for joint, target_pos in zip(self.world.base_joints[:2], end_pos):
+                limits_dict[joint] = ((target_pos-self.base_goal_radius), (target_pos + self.base_goal_radius))
+
+        # print("Limits dict: ", limits_dict)
+
+        return limits_dict
+    
     def solve(self, start_pos, end_pos, body_to_plan):
+
+        print("Starting position: ", start_pos)
+        print("Goal position: ", end_pos)
+
+        goal_joint_limits = self.create_goal_limits(end_pos, body_to_plan)
+
+        if body_to_plan == 'a':
+            self.random_goal_sample = self.get_sample_fn(self.world.robot, self.world.arm_joints, custom_limits=goal_joint_limits)
+        elif body_to_plan == 'b':
+            self.random_goal_sample = self.get_sample_fn(self.world.robot, self.world.base_joints, custom_limits=goal_joint_limits)
 
         path = None
 
@@ -171,6 +206,10 @@ class MotionPlanner:
         G = [TreeNode(start_pos, cost=0, parent=None)] # Create a list of TreeNode objects
         found = 0 # Variable to keep track of if we've made it to the goal
         cart_pos_t = []
+
+        # print("List of vertices: ", V)
+
+        wait_for_user("Hit enter to start planning")
 
         # print("Start position: ", G[0].pos)
         # base_pos = get_joint_positions(self.world.robot, self.world.base_joints)
@@ -188,6 +227,7 @@ class MotionPlanner:
             #     wait_for_user()
             # wait_for_user()
             if (self.goal_biasing) and (i % self.goal_int == 0): # Every 20 iterations take the random sample from inside the goal area (goal biasing)
+                print("Sampling from goal region")
                 x_rand = self.get_random_sample(body_to_plan, sample_goal=True)
                 # if body_to_plan == 'b':
                 #     rand_joints = rand_joints + self.get_random_base_sample(sample_goal=True)[0:2]
@@ -229,7 +269,7 @@ class MotionPlanner:
                         path = self.retrive_path(obj)
                         break
         if path:
-            print("Path before returning: ", path)
+            # print("Path before returning: ", path)
             return path
         else:
             print('No path found')
@@ -249,12 +289,15 @@ class MotionPlanner:
         path_arm = None
         path_base = None
 
+        # print("start_pos in plan function: ", start_pos)
+
         if body_to_plan == 'b':
             path_base = self.solve(start_pos[7:], end_pos, body_to_plan)
         
         elif body_to_plan == 'a':    
             path_arm = self.solve(start_pos[0:7], end_pos[0:7], body_to_plan)
 
+        print("PLAN COMPLETE!")
         return path_base, path_arm
 
 

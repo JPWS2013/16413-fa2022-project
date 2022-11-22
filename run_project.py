@@ -31,7 +31,7 @@ class ExecutionEngine():
 
         print("Object map: ", self.object_map)
 
-        self.motion_planner = mp.MotionPlanner(self.world, d=0.75)
+        self.motion_planner = mp.MotionPlanner(self.world, d=0.5)
 
     def end(self):
         print("Destroying world object")
@@ -136,7 +136,7 @@ class ExecutionEngine():
                 end_pos = ((target_x - self.drawer_mvmt_dist), target_y, target_z)
             base_path, arm_path = self.motion_planner.plan(self.current_pos, end_pos, 'a')
             
-            self.current_pos = arm_path[0] + self.current_pos[8:]
+            self.current_pos = arm_path[0] + self.current_pos[7:]
 
             return (target, None, arm_path)
 
@@ -151,7 +151,7 @@ class ExecutionEngine():
                 
             else:
                 base_path, arm_path = self.motion_planner.plan(self.current_pos, target_pos, 'a')
-                self.current_pos = arm_path + self.current_pos[8:]
+                self.current_pos = arm_path[0] + self.current_pos[7:]
                 return(target, None, arm_path)
 
         if (action.name == 'placein') or (action.name == 'placeon'):
@@ -267,6 +267,9 @@ class ExecutionEngine():
             except ValueError as e:
                 print("Error getting coordinates for the following link: ", e, "Exiting!")
                 raise ValueError(e)
+
+        # print("Location map: ", location_map)
+        # print("Object map: ", object_map)
 
         return location_map, object_map, arm_init + base_init
 
