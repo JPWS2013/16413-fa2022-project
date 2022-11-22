@@ -7,7 +7,7 @@ SUBMODULE_PATH= os.path.abspath(os.path.join(os.getcwd(), 'padm-project-2022f'))
 sys.path.append(SUBMODULE_PATH)
 sys.path.extend(os.path.join(SUBMODULE_PATH, d) for d in ['pddlstream', 'ss-pybullet'])
 
-from pybullet_tools.utils import set_pose, Pose, Point, Euler, multiply, get_pose, get_point, create_box, set_all_static, WorldSaver, create_plane, COLOR_FROM_NAME, stable_z_on_aabb, pairwise_collision, elapsed_time, get_aabb_extent, get_aabb, create_cylinder, set_point, get_function_name, wait_for_user, dump_world, set_random_seed, set_numpy_seed, get_random_seed, get_numpy_seed, set_camera, set_camera_pose, link_from_name, get_movable_joints, get_joint_name, get_joint_positions, set_joint_positions, set_joint_position, create_attachment, get_euler, quat_from_euler
+from pybullet_tools.utils import set_pose, Pose, Point, Euler, multiply, get_pose, get_point, create_box, set_all_static, WorldSaver, create_plane, COLOR_FROM_NAME, stable_z_on_aabb, pairwise_collision, elapsed_time, get_aabb_extent, get_aabb, create_cylinder, set_point, get_function_name, wait_for_user, dump_world, set_random_seed, set_numpy_seed, get_random_seed, get_numpy_seed, set_camera, set_camera_pose, link_from_name, get_movable_joints, get_joint_name, get_joint_positions, set_joint_positions, set_joint_position, create_attachment, get_euler, quat_from_euler, get_all_links, get_link_name, get_joint_names, get_joints
 
 from pybullet_tools.utils import CIRCULAR_LIMITS, get_custom_limits, set_joint_positions, interval_generator, get_link_pose, interpolate_poses, get_collision_data, body_collision, Pose, Point
 
@@ -300,6 +300,41 @@ while action_option != 2:
 
             user_selection = input("End or continue? ")
             user_selection.strip()
+
+    elif action_option == 10:
+        
+        # print("AABBs for kitchen:")
+        # for each_link in get_all_links(world.kitchen):
+        #     print(get_link_name(world.kitchen, each_link), "has aabb: ", get_aabb(world.kitchen, each_link))
+        
+        # print("AABBs for robot:")
+        # for each_link in get_all_links(world.robot):
+        #     print(get_link_name(world.robot, each_link), "has aabb: ", get_aabb(world.robot, each_link))
+
+        # robot_joints = get_joints(world.robot)
+        # arm_joints = list()
+        # base_joints = list()
+        # for each_robot_joint in robot_joints:
+        #     if each_robot_joint in world.arm_joints:
+        #         arm_joints.append(each_robot_joint)
+        #     elif each_robot_joint in world.base_joints:
+        #         base_joints.append(each_robot_joint)
+
+        # all_joints = arm_joints + base_joints
+        # all_joint_names = [get_joint_name(world.robot, joint) for joint in all_joints]
+
+        # print("All joints being considered: ", all_joint_names)
+
+        # check_collision = get_collision_fn(world.robot, all_joints, [world.kitchen])
+        robot_aabb = get_aabb(world.robot)
+        kitchen_aabb = get_aabb(world.kitchen)
+
+        print("Robot aabb: ", robot_aabb)
+        print("kitchen aabb: ", kitchen_aabb)
+
+        # print("")
+
+
     
     else:
         print(action_option, " is an invalid input option! Please try again.")
