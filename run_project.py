@@ -9,7 +9,7 @@ sys.path.extend(os.path.join(SUBMODULE_PATH, d) for d in ['pddlstream', 'ss-pybu
 
 from src.world import World
 from src.utils import JOINT_TEMPLATE, BLOCK_SIZES, BLOCK_COLORS, COUNTERS, \
-    ALL_JOINTS, LEFT_CAMERA, CAMERA_MATRIX, CAMERA_POSES, CAMERAS, compute_surface_aabb, BLOCK_TEMPLATE, name_from_type, GRASP_TYPES, SIDE_GRASP, joint_from_name, STOVES, TOP_GRASP, randomize, LEFT_DOOR, point_from_pose, translate_linearly
+    ALL_JOINTS, LEFT_CAMERA, CAMERA_MATRIX, CAMERA_POSES, CAMERAS, compute_surface_aabb, BLOCK_TEMPLATE, name_from_type, GRASP_TYPES, SIDE_GRASP, joint_from_name, STOVES, TOP_GRASP, randomize, LEFT_DOOR, point_from_pose, translate_linearly, create_surface_attachment, surface_from_name
 
 from pybullet_tools.utils import set_pose, Pose, Point, Euler, multiply, get_pose, get_point, create_box, set_all_static, WorldSaver, create_plane, COLOR_FROM_NAME, stable_z_on_aabb, pairwise_collision, elapsed_time, get_aabb_extent, get_aabb, create_cylinder, set_point, get_function_name, wait_for_user, dump_world, set_random_seed, set_numpy_seed, get_random_seed, get_numpy_seed, set_camera, set_camera_pose, link_from_name, get_movable_joints, get_joint_name, CIRCULAR_LIMITS, get_custom_limits, set_joint_positions, interval_generator, get_link_pose, interpolate_poses, get_all_links, get_link_names, get_link_inertial_pose, body_from_name, get_pose, get_link_name, get_bodies, dump_body, create_attachment, get_body_name, get_joint_positions
 
@@ -69,8 +69,8 @@ class ExecutionEngine():
             plan_dict[action.name+str(action.parameters)] = self.plan_action(action)
             wait_for_user()
             
-            # if i >= 2:
-            #     break
+            if i >= 4:
+                break
             # start_pos, end_pos = get_positions()
             # motion_plan = self.mp.solve(start_pos, end_pos)
             # self.execute(motion_plan)
@@ -223,10 +223,10 @@ class ExecutionEngine():
 
             self.attachments[spam_box] = create_attachment(self.world.robot, link_from_name(world.robot, 'panda_hand'), self.world.get_body(spam_box))
 
-            # self.attachments['indigo_drawer_top'] = create_attachment(self.world.robot, link_from_name(world.robot, 'panda_hand'), body_from_name('indigo_drawer_top'))
+            # self.attachments['indigo_drawer_top'] = create_attachment(self.world.robot, link_from_name(world.robot, 'panda_hand'), surface_from_name('indigo_drawer_top'))
+            print('Attachments:', self.attachments)
 
         self.active_attachment = None
-
         return world
 
     def add_ycb(self, world, ycb_type, idx=0, counter=0, **kwargs):
