@@ -79,7 +79,11 @@ class ExecutionEngine():
 
         self.world = self.create_world(use_gui=True, create_att=True)
 
-        print("Plan dict: ", plan_dict)
+        # print("Plan dict: ", plan_dict)
+
+        self.current_pos = self.location_map['start_pos'][7:]
+        self.current_pos = (self.current_pos)+(-math.pi,)
+        print("Current pos before executing plan:" , self.current_pos)
         
         print("Step 3: Executing Plan")
 
@@ -165,21 +169,32 @@ class ExecutionEngine():
     def move_robot(self, base_path, arm_path):
         if base_path:
             base_path.reverse()
-            current_pos = base_path.pop(0)
-            current_pos = (current_pos)+(-math.pi,)
+            
             for next_base_point in base_path:
-                print("Current point: ", current_pos)
-                print("Next point: ", next_base_point)
-                dir_vec = np.array(next_base_point)- np.array(current_pos[:2])
-                delta_theta = math.tan(dir_vec[1]/dir_vec[0])
-                new_theta = current_pos[2] + delta_theta
-                set_joint_positions(self.world.robot, self.world.base_joints, (next_base_point+(new_theta,)))
+                print("Current point: ", self.current_pos)
+                
+                dir_vec = np.array(next_base_point)- np.array(self.current_pos[:2])
+                delta_theta = math.atan(dir_vec[1]/dir_vec[0])
+                new_theta = -math.pi + delta_theta
+                next_pos = next_base_point+(new_theta,)
+
+                print("Dir vec: ", dir_vec, " and delta theta: ", delta_theta)
+                print("Next point: ", next_pos)
+
+                if new_theta != self.current_pos[2]:
+                    
+                    print("Rotating base first!")
+                    wait_for_user()
+                    set_joint_positions(self.world.robot, self.world.base_joints, (self.current_pos[:2]+(new_theta,)))
+
+                print("Translating base now")
+                wait_for_user()
+                set_joint_positions(self.world.robot, self.world.base_joints, next_pos)
                 if self.active_attachment:
                     self.active_attachment.assign()
 
-                current_pos = next_base_point + (new_theta,)
+                self.current_pos = next_base_point + (new_theta,)
                 time.sleep(1)
-                wait_for_user()
 
         if arm_path:
             arm_path.reverse()
