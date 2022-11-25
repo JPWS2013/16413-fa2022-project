@@ -11,7 +11,7 @@ from src.world import World
 from src.utils import JOINT_TEMPLATE, BLOCK_SIZES, BLOCK_COLORS, COUNTERS, \
     ALL_JOINTS, LEFT_CAMERA, CAMERA_MATRIX, CAMERA_POSES, CAMERAS, compute_surface_aabb, BLOCK_TEMPLATE, name_from_type, GRASP_TYPES, SIDE_GRASP, joint_from_name, STOVES, TOP_GRASP, randomize, LEFT_DOOR, point_from_pose, translate_linearly, create_surface_attachment, surface_from_name
 
-from pybullet_tools.utils import set_pose, Pose, Point, Euler, multiply, get_pose, get_point, create_box, set_all_static, WorldSaver, create_plane, COLOR_FROM_NAME, stable_z_on_aabb, pairwise_collision, elapsed_time, get_aabb_extent, get_aabb, create_cylinder, set_point, get_function_name, wait_for_user, dump_world, set_random_seed, set_numpy_seed, get_random_seed, get_numpy_seed, set_camera, set_camera_pose, link_from_name, get_movable_joints, get_joint_name, CIRCULAR_LIMITS, get_custom_limits, set_joint_positions, interval_generator, get_link_pose, interpolate_poses, get_all_links, get_link_names, get_link_inertial_pose, body_from_name, get_pose, get_link_name, get_bodies, dump_body, create_attachment, get_body_name, get_joint_positions
+from pybullet_tools.utils import set_pose, Pose, Point, Euler, multiply, get_pose, get_point, create_box, set_all_static, WorldSaver, create_plane, COLOR_FROM_NAME, stable_z_on_aabb, pairwise_collision, elapsed_time, get_aabb_extent, get_aabb, create_cylinder, set_point, get_function_name, wait_for_user, dump_world, set_random_seed, set_numpy_seed, get_random_seed, get_numpy_seed, set_camera, set_camera_pose, link_from_name, get_movable_joints, get_joint_name, CIRCULAR_LIMITS, get_custom_limits, set_joint_positions, interval_generator, get_link_pose, interpolate_poses, get_all_links, get_link_names, get_link_inertial_pose, body_from_name, get_pose, get_link_name, get_bodies, dump_body, create_attachment, get_body_name, get_joint_positions, get_position_waypoints, get_quaternion_waypoints, quat_from_euler, euler_from_quat
 
 # import MotionPlanner.RRT_star as mp
 import ActivityPlanner.ff_planner as ap
@@ -188,22 +188,40 @@ class ExecutionEngine():
                 print("Dir vec: ", dir_vec, " and delta theta: ", delta_theta, "(", math.degrees(delta_theta), "degrees)")
                 print("Next point: ", next_pos, "(New theta of ", math.degrees(new_theta), "degrees)")
 
+                next_pos_quat = quat_from_euler((0,0,new_theta))
+
                 if new_theta != self.current_pos[2]:
                     
-                    print("Rotating base first!")
-                    wait_for_user()
-                    set_joint_positions(self.world.robot, self.world.base_joints, (self.current_pos[:2]+(new_theta,)))
+                    # print("Rotating base first!")
+                    # wait_for_user()
 
-                print("Translating base now")
-                wait_for_user()
-                set_joint_positions(self.world.robot, self.world.base_joints, next_pos)
+                    for point, next_quat in get_quaternion_waypoints(self.current_pos[:2], quat_from_euler((0,0,self.current_pos[2])), next_pos_quat, step_size = math.pi/32):
+                        set_joint_positions(self.world.robot, self.world.base_joints, (point+(euler_from_quat(next_quat)[2],)))
+                        time.sleep(0.05)
+
+                self.current_pos = self.current_pos[:2] + (new_theta,)
+                # print("Translating base now")
+                # wait_for_user()
+
+                for next_point, quat in get_position_waypoints(self.current_pos[:2], dir_vec, next_pos_quat):
+                    next_point = tuple(next_point)
+                    print("Next point: ", next_point)
+                    set_joint_positions(self.world.robot, self.world.base_joints, (next_point + (new_theta,)))
+                    time.sleep(0.01)
+
+                self.current_pos = next_base_point + (new_theta,)
+                
                 if self.active_attachment:
                     self.active_attachment.assign()
 
-                self.current_pos = next_base_point + (new_theta,)
-                time.sleep(1)
+                
+                # time.sleep(0.1)
 
-            set_joint_positions(self.world.robot, self.world.base_joints, (self.current_pos[:2]+(-math.pi/2,)))
+            # set_joint_positions(self.world.robot, self.world.base_joints, (self.current_pos[:2]+(-math.pi/2,)))
+
+            for point, next_quat in get_quaternion_waypoints(self.current_pos[:2], quat_from_euler((0,0,self.current_pos[2])), quat_from_euler((0,0,(-math.pi/2))), step_size=math.pi/32):
+                        set_joint_positions(self.world.robot, self.world.base_joints, (point+(euler_from_quat(next_quat)[2],)))
+                        time.sleep(0.05)
             
 
         if arm_path:
