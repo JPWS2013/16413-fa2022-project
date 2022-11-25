@@ -36,6 +36,8 @@ class ExecutionEngine():
 
         object_dict = dict()
 
+        self.active_attachment = None
+
         for item_name in self.object_map.keys():
             object_dict[item_name] = self.world.get_body(item_name)
 
@@ -86,7 +88,7 @@ class ExecutionEngine():
 
         self.end()
 
-        self.world = self.create_world(use_gui=True, create_att=True)
+        self.world = self.create_world(use_gui=True)
 
         # print("Plan dict: ", plan_dict)
 
@@ -115,7 +117,12 @@ class ExecutionEngine():
                 if not ((base_path==None) and (arm_path==None)):
                     self.move_robot(base_path, arm_path)
 
-                self.active_attachment = self.attachments[target]
+                
+                print("Creating attachment to ", target)
+
+                self.active_attachment = create_attachment(self.world.robot, link_from_name(self.world.robot, 'panda_hand'), self.world.get_body(target))
+
+                # self.active_attachment = self.attachments[target]
 
             elif ('placein' in action) or ('placeon' in action):
                 self.active_attachment = None
@@ -201,7 +208,7 @@ class ExecutionEngine():
             base_path.reverse()
             
             for next_base_point in base_path:
-                print("Current point: ", self.current_pos)
+                # print("Current point: ", self.current_pos)
                 
                 dir_vec = np.array(next_base_point)- np.array(self.current_pos[:2])
 
@@ -214,8 +221,8 @@ class ExecutionEngine():
                 
                 next_pos = next_base_point+(new_theta,)
 
-                print("Dir vec: ", dir_vec, " and delta theta: ", delta_theta, "(", math.degrees(delta_theta), "degrees)")
-                print("Next point: ", next_pos, "(New theta of ", math.degrees(new_theta), "degrees)")
+                # print("Dir vec: ", dir_vec, " and delta theta: ", delta_theta, "(", math.degrees(delta_theta), "degrees)")
+                # print("Next point: ", next_pos, "(New theta of ", math.degrees(new_theta), "degrees)")
 
                 next_pos_quat = quat_from_euler((0,0,new_theta))
 
@@ -226,6 +233,9 @@ class ExecutionEngine():
 
                     for point, next_quat in get_quaternion_waypoints(self.current_pos[:2], quat_from_euler((0,0,self.current_pos[2])), next_pos_quat, step_size = math.pi/32):
                         set_joint_positions(self.world.robot, self.world.base_joints, (point+(euler_from_quat(next_quat)[2],)))
+                        
+                        if self.active_attachment:
+                            self.active_attachment.assign()
                         time.sleep(0.05)
 
                 self.current_pos = self.current_pos[:2] + (new_theta,)
@@ -236,12 +246,16 @@ class ExecutionEngine():
                     next_point = tuple(next_point)
                     # print("Next point: ", next_point)
                     set_joint_positions(self.world.robot, self.world.base_joints, (next_point + (new_theta,)))
+
+                    if self.active_attachment:
+                        self.active_attachment.assign()
+
                     time.sleep(0.01)
 
                 self.current_pos = next_base_point + (new_theta,)
                 
-                if self.active_attachment:
-                    self.active_attachment.assign()
+                # if self.active_attachment:
+                #     self.active_attachment.assign()
 
                 
                 # time.sleep(0.1)
@@ -250,6 +264,10 @@ class ExecutionEngine():
 
             for point, next_quat in get_quaternion_waypoints(self.current_pos[:2], quat_from_euler((0,0,self.current_pos[2])), quat_from_euler((0,0,(-math.pi/2))), step_size=math.pi/32):
                         set_joint_positions(self.world.robot, self.world.base_joints, (point+(euler_from_quat(next_quat)[2],)))
+                        
+                        if self.active_attachment:
+                            self.active_attachment.assign()
+                        
                         time.sleep(0.05)
             
 
@@ -260,7 +278,7 @@ class ExecutionEngine():
                 set_joint_positions(self.world.robot, self.world.arm_joints, arm_point)
                 if self.active_attachment:
                     self.active_attachment.assign()
-                time.sleep(1)
+                time.sleep(0.5)
 
     
     def get_activity_plan(self):
@@ -288,17 +306,16 @@ class ExecutionEngine():
         spam_box = add_spam_box(world, idx=1, counter=0, pose2d=(0.2, 1.1, np.pi / 4))
         world._update_initial()
 
-        if create_att:
-            self.attachments = dict()
+        # if create_att:
+        #     self.attachments = dict()
 
-            self.attachments[sugar_box] = create_attachment(self.world.robot, link_from_name(world.robot, 'panda_hand'), self.world.get_body(sugar_box))
+        #     self.attachments[sugar_box] = create_attachment(self.world.robot, link_from_name(world.robot, 'panda_hand'), self.world.get_body(sugar_box))
 
-            self.attachments[spam_box] = create_attachment(self.world.robot, link_from_name(world.robot, 'panda_hand'), self.world.get_body(spam_box))
+        #     self.attachments[spam_box] = create_attachment(self.world.robot, link_from_name(world.robot, 'panda_hand'), self.world.get_body(spam_box))
 
             # self.attachments['indigo_drawer_top'] = create_attachment(self.world.robot, link_from_name(world.robot, 'panda_hand'), surface_from_name('indigo_drawer_top'))
-            print('Attachments:', self.attachments)
+            # print('Attachments:', self.attachments)
 
-        self.active_attachment = None
         return world
 
     def add_ycb(self, world, ycb_type, idx=0, counter=0, **kwargs):
