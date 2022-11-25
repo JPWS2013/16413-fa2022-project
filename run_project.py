@@ -124,6 +124,7 @@ class ExecutionEngine():
             if end_pos_name in self.location_map.keys():
                 end_pos = self.location_map[end_pos_name]
                 base_path, arm_path = self.motion_planner.plan(self.current_pos, end_pos, 'b')
+
             # elif end_pos_name in self.object_map.keys():
             #     end_pos = self.object_map[end_pos_name, 'a']
             else:
@@ -201,6 +202,9 @@ class ExecutionEngine():
 
                 self.current_pos = next_base_point + (new_theta,)
                 time.sleep(1)
+
+            set_joint_positions(self.world.robot, self.world.base_joints, (self.current_pos[:2]+(-math.pi/2,)))
+            
 
         if arm_path:
             arm_path.reverse()
