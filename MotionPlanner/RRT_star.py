@@ -23,7 +23,7 @@ class TreeNode(object):
         self.cost = cost
 
 class MotionPlanner:
-    def __init__(self, robot, kitchen, base_joints, arm_joints, kitchen_items, iterations=10000, d=0.5, goal_int=20, goal_biasing=True, run_rrtstar=False, arm_goal_radius = 0.03, base_goal_radius = 0.02):
+    def __init__(self, robot, kitchen, base_joints, arm_joints, kitchen_items, iterations=10000, d=0.5, goal_int=20, goal_biasing=True, run_rrtstar=False, arm_goal_radius = 0.03, base_goal_radius = 0.025):
         self.robot = robot
         self.kitchen = kitchen
         self.base_joints = base_joints
