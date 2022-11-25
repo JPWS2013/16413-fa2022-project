@@ -174,12 +174,18 @@ class ExecutionEngine():
                 print("Current point: ", self.current_pos)
                 
                 dir_vec = np.array(next_base_point)- np.array(self.current_pos[:2])
+
                 delta_theta = math.atan(dir_vec[1]/dir_vec[0])
-                new_theta = -math.pi + delta_theta
+
+                if (dir_vec[0]>0):
+                    new_theta = delta_theta
+                else:
+                    new_theta = -math.pi + delta_theta
+                
                 next_pos = next_base_point+(new_theta,)
 
-                print("Dir vec: ", dir_vec, " and delta theta: ", delta_theta)
-                print("Next point: ", next_pos)
+                print("Dir vec: ", dir_vec, " and delta theta: ", delta_theta, "(", math.degrees(delta_theta), "degrees)")
+                print("Next point: ", next_pos, "(New theta of ", math.degrees(new_theta), "degrees)")
 
                 if new_theta != self.current_pos[2]:
                     
