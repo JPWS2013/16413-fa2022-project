@@ -23,7 +23,7 @@ class TreeNode(object):
         self.cost = cost
 
 class MotionPlanner:
-    def __init__(self, robot, kitchen, base_joints, arm_joints, kitchen_items, iterations=10000, d=0.5, goal_int=20, goal_biasing=True, run_rrtstar=False, arm_goal_radius = 0.1, base_goal_radius = 0.05):
+    def __init__(self, robot, kitchen, base_joints, arm_joints, kitchen_items, iterations=10000, d=0.5, goal_int=20, goal_biasing=True, run_rrtstar=False, arm_goal_radius = 0.03, base_goal_radius = 0.02):
         self.robot = robot
         self.kitchen = kitchen
         self.base_joints = base_joints
@@ -194,7 +194,12 @@ class MotionPlanner:
 
         elif body_to_plan == 'b':
             for joint, target_pos in zip(self.base_joints[:2], end_pos):
-                limits_dict[joint] = ((target_pos-self.base_goal_radius), (target_pos + self.base_goal_radius))
+
+                if joint == 'x':
+                    limits_dict[joint] = (target_pos, (target_pos + self.base_goal_radius))
+
+                else:
+                    limits_dict[joint] = ((target_pos-self.base_goal_radius), (target_pos + self.base_goal_radius))
 
         # print("Limits dict: ", limits_dict)
 
@@ -245,7 +250,7 @@ class MotionPlanner:
                 #     rand_joints = rand_joints + self.get_random_base_sample(sample_goal=True)[0:2]
             else: # Else take the random sample from somewhere in the operating area
                 x_rand = self.get_random_sample(body_to_plan)
-            # print('Random sample obtained: ', rand_joints)
+            print('Random sample obtained: ', x_rand)
             # wait_for_user()
             x_nearest = self.get_nearest_node(x_rand, G)
             # print('X_nearest: ', x_nearest.pos)

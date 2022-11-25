@@ -13,6 +13,9 @@ from src.utils import JOINT_TEMPLATE, BLOCK_SIZES, BLOCK_COLORS, COUNTERS, \
 
 from pybullet_tools.utils import set_pose, Pose, Point, Euler, multiply, get_pose, get_point, create_box, set_all_static, WorldSaver, create_plane, COLOR_FROM_NAME, stable_z_on_aabb, pairwise_collision, elapsed_time, get_aabb_extent, get_aabb, create_cylinder, set_point, get_function_name, wait_for_user, dump_world, set_random_seed, set_numpy_seed, get_random_seed, get_numpy_seed, set_camera, set_camera_pose, link_from_name, get_movable_joints, get_joint_name, CIRCULAR_LIMITS, get_custom_limits, set_joint_positions, interval_generator, get_link_pose, interpolate_poses, get_all_links, get_link_names, get_link_inertial_pose, body_from_name, get_pose, get_link_name, get_bodies, dump_body, create_attachment, get_body_name, get_joint_positions, get_position_waypoints, get_quaternion_waypoints, quat_from_euler, euler_from_quat
 
+from pybullet_tools.ikfast.ikfast import closest_inverse_kinematics
+from pybullet_tools.ikfast.franka_panda.ik import PANDA_INFO, FRANKA_URDF
+
 # import MotionPlanner.RRT_star as mp
 import ActivityPlanner.ff_planner as ap
 
@@ -167,14 +170,23 @@ class ExecutionEngine():
         if action.name == 'grip':
             arm, target, location = action.parameters
 
-            target_pos = self.object_map[target]
+            target_pose = self.object_map[target]
             location_pos = self.location_map[location]
+            print("Current robot base position: ", get_joint_positions(self.world.robot, self.world.base_joints))
 
-            if self.current_pos[7:] == location_pos:
+            tool_link = link_from_name(self.world.robot, 'panda_hand')
+
+            target_joint_angles = next(closest_inverse_kinematics(self.world.robot, PANDA_INFO, tool_link, target_pose, max_time=0.05), None)
+
+            if target_joint_angles == None:
+                raise ValueError("Unable to get joint angles!")
+
+
+            if self.current_pos[:7] == target_joint_angles:
                 return (target, None, None)
                 
             else:
-                base_path, arm_path = self.motion_planner.plan(target_pos, 'a')
+                base_path, arm_path = self.motion_planner.plan(target_joint_angles, 'a')
                 self.update_robot_position(arm_path[0], self.current_pos[7:])
                 
                 return(target, None, arm_path)
@@ -362,10 +374,11 @@ class ExecutionEngine():
         # name = get_body_name(body)
 
         if "potted_meat" in name:
-            return (1.465, -1.727, -1.754, -2.252, -0.022, 2.948, -1.004, 0.8, 1.0)
+            return ((0.26717514421272204, 0.9903984489160852, -0.4970404981710017), (-0.2705980500730985, -0.6532814824381882, -0.27059805007309856, 0.6532814824381883))
+
         
         elif "sugar_box" in name:
-            return (-0.788, 1.423, -1.229, -1.052, -0.624, 2.531, 2.740, 0.7, 0.65)
+            return ((-0.11514718625761429, 0.5510050506338834, -0.4540235005339055), (-0.2705980500730985, -0.6532814824381882, -0.27059805007309856, 0.6532814824381883))
         
         else:
             raise ValueError(name)
