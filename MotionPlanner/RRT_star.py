@@ -71,19 +71,21 @@ class MotionPlanner:
         """
         Uses scipy's KD Tree implementation to get the nearest node to the point
 
+        Note: Although nodes in G are defined as (x,y,theta), the kdtree is built based only on (x,y)
+
         Inputs:
             point: (x,y) tuple representing the point for which nearest neighbor must be found
         Returns:
             The (x,y) tuple of the nearest point in the tree
         """
         
-        points = np.array([node.pos for node in G])
+        points = np.array([node.pos[:2] for node in G])
         kdtree = KDTree(points)
 
-        d,i = kdtree.query(point, k=1)
+        d,i = kdtree.query(point[:2], k=1)
 
         for node in G:
-            if node.pos == tuple(points[i]):
+            if node.pos[:2] == tuple(points[i]):
                 return node
         
     def get_sample_fn(self, body, joints, custom_limits={}, **kwargs):
@@ -117,13 +119,13 @@ class MotionPlanner:
             if body_to_plan == 'a':
                 rand_joints = self.get_random_arm_sample()
             elif body_to_plan == 'b':
-                rand_joints = self.get_random_base_sample()[0:2]
+                rand_joints = self.get_random_base_sample()[:2]
 
         else:
             if body_to_plan == 'a':
                 rand_joints = self.random_goal_sample()
             elif body_to_plan == 'b':
-                rand_joints = self.random_goal_sample()[0:2]
+                rand_joints = self.random_goal_sample()[:2]
                 
 
         return rand_joints
@@ -139,7 +141,20 @@ class MotionPlanner:
         elif body_to_plan == 'b':
             # theta = get_joint_positions(self.world.robot, self.world.base_joints)[2]
             theta = -1.57
-            set_joint_positions(self.world.robot, self.world.base_joints, (x_new + (theta,)))
+
+            dir_vec = np.array(x_new) - np.array(x_nearest.pos)
+
+            delta_theta = math.atan(dir_vec[1]/dir_vec[0])
+
+            if (dir_vec[0]>0):
+                new_theta = delta_theta
+            else:
+                new_theta = -math.pi + delta_theta
+
+            new_pos = (x_new + (new_theta,))
+
+
+            set_joint_positions(self.world.robot, self.world.base_joints, new_pos)
             # set_joint_positions(self.world.robot, self.world.arm_joints, x_new[0:7])
         
         return not body_collision(self.world.robot, self.world.kitchen)
