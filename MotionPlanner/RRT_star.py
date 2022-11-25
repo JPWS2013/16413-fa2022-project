@@ -23,7 +23,7 @@ class TreeNode(object):
         self.cost = cost
 
 class MotionPlanner:
-    def __init__(self, robot, kitchen, base_joints, arm_joints, kitchen_items, iterations=10000, d=0.3, goal_int=20, goal_biasing=True, run_rrtstar=False, arm_goal_radius = 0.1, base_goal_radius = 0.05):
+    def __init__(self, robot, kitchen, base_joints, arm_joints, kitchen_items, iterations=10000, d=0.5, goal_int=20, goal_biasing=True, run_rrtstar=False, arm_goal_radius = 0.1, base_goal_radius = 0.05):
         self.robot = robot
         self.kitchen = kitchen
         self.base_joints = base_joints
@@ -287,7 +287,7 @@ class MotionPlanner:
             print('No path found')
             return None
 
-    def plan(self, start_pos, end_pos, body_to_plan):
+    def plan(self, end_pos, body_to_plan):
         # hand_pos_vec = np.array(get_link_pose(self.robot, link_from_name(self.robot, 'panda_hand'))[0])
 
         # end_pos_vec = np.array(end_pos)
@@ -302,12 +302,15 @@ class MotionPlanner:
         path_base = None
 
         # print("start_pos in plan function: ", start_pos)
+        
 
         if body_to_plan == 'b':
-            path_base = self.solve(start_pos[7:], end_pos, body_to_plan)
+            start_pos = get_joint_positions(self.robot, self.base_joints)[:2]
+            path_base = self.solve(start_pos, end_pos, body_to_plan)
         
-        elif body_to_plan == 'a':    
-            path_arm = self.solve(start_pos[0:7], end_pos[0:7], body_to_plan)
+        elif body_to_plan == 'a':  
+            start_pos = get_joint_positions(self.robot, self.arm_joints)  
+            path_arm = self.solve(start_pos, end_pos[0:7], body_to_plan)
 
         print("PLAN COMPLETE!")
         return path_base, path_arm

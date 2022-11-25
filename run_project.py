@@ -37,7 +37,7 @@ class ExecutionEngine():
             object_dict[item_name] = self.world.get_body(item_name)
 
 
-        self.motion_planner = mp.MotionPlanner(self.world.robot, self.world.kitchen, self.world.base_joints, self.world.arm_joints, object_dict, d=0.5)
+        self.motion_planner = mp.MotionPlanner(self.world.robot, self.world.kitchen, self.world.base_joints, self.world.arm_joints, object_dict)
 
     def end(self):
         print("Destroying world object")
@@ -120,6 +120,14 @@ class ExecutionEngine():
             else:
                 raise ValueError("Action does not match pre-mapped actions in execute_plan function")
 
+    def update_robot_position(self, arm_angles, base_pos):
+
+        self.current_pos = arm_angles + base_pos
+
+        set_joint_positions(self.world.robot, self.world.arm_joints, self.current_pos[:7])
+
+        set_joint_positions(self.world.robot, self.world.base_joints, (base_pos+(-math.pi/2,)))
+
 
     def plan_action(self, action):
         print("    - Planning for action: ", action.name, action.parameters[1:])
@@ -129,14 +137,16 @@ class ExecutionEngine():
             
             if end_pos_name in self.location_map.keys():
                 end_pos = self.location_map[end_pos_name]
-                base_path, arm_path = self.motion_planner.plan(self.current_pos, end_pos, 'b')
+                base_path, arm_path = self.motion_planner.plan(end_pos, 'b')
 
             # elif end_pos_name in self.object_map.keys():
             #     end_pos = self.object_map[end_pos_name, 'a']
             else:
                 raise ValueError(end_pos_name + " not in location map!")
             
-            self.current_pos = self.current_pos[0:7] + base_path[0]
+            self.update_robot_position(self.current_pos[0:7], base_path[0])
+
+            # set_joint_positions(self.world.robot, self.world.base_joints, (base_path[0]+(-math.pi/2)))
             
             return (None, base_path, None)
 
@@ -148,9 +158,9 @@ class ExecutionEngine():
                 end_pos = ((target_x + self.drawer_mvmt_dist), target_y, target_z)
             else:
                 end_pos = ((target_x - self.drawer_mvmt_dist), target_y, target_z)
-            base_path, arm_path = self.motion_planner.plan(self.current_pos, end_pos, 'a')
+            base_path, arm_path = self.motion_planner.plan(end_pos, 'a')
             
-            self.current_pos = arm_path[0] + self.current_pos[7:]
+            self.update_robot_position(arm_path[0], self.current_pos[7:])
 
             return (target, None, arm_path)
 
@@ -164,8 +174,9 @@ class ExecutionEngine():
                 return (target, None, None)
                 
             else:
-                base_path, arm_path = self.motion_planner.plan(self.current_pos, target_pos, 'a')
-                self.current_pos = arm_path[0] + self.current_pos[7:]
+                base_path, arm_path = self.motion_planner.plan(target_pos, 'a')
+                self.update_robot_position(arm_path[0], self.current_pos[7:])
+                
                 return(target, None, arm_path)
 
         if (action.name == 'placein') or (action.name == 'placeon'):
