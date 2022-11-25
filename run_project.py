@@ -205,7 +205,7 @@ class ExecutionEngine():
 
                 for next_point, quat in get_position_waypoints(self.current_pos[:2], dir_vec, next_pos_quat):
                     next_point = tuple(next_point)
-                    print("Next point: ", next_point)
+                    # print("Next point: ", next_point)
                     set_joint_positions(self.world.robot, self.world.base_joints, (next_point + (new_theta,)))
                     time.sleep(0.01)
 
