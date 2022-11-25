@@ -31,7 +31,13 @@ class ExecutionEngine():
 
         print("Object map: ", self.object_map)
 
-        self.motion_planner = mp.MotionPlanner(self.world, d=0.5)
+        object_dict = dict()
+
+        for item_name in self.object_map.keys():
+            object_dict[item_name] = self.world.get_body(item_name)
+
+
+        self.motion_planner = mp.MotionPlanner(self.world.robot, self.world.kitchen, self.world.base_joints, self.world.arm_joints, object_dict, d=0.5)
 
     def end(self):
         print("Destroying world object")

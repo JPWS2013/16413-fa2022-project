@@ -23,26 +23,23 @@ class TreeNode(object):
         self.cost = cost
 
 class MotionPlanner:
-    def __init__(self, world, iterations=10000, d=0.3, goal_int=20, goal_biasing=True, run_rrtstar=False, arm_goal_radius = 0.1, base_goal_radius = 0.05):
-        self.world = world
+    def __init__(self, robot, kitchen, base_joints, arm_joints, kitchen_items, iterations=10000, d=0.3, goal_int=20, goal_biasing=True, run_rrtstar=False, arm_goal_radius = 0.1, base_goal_radius = 0.05):
+        self.robot = robot
+        self.kitchen = kitchen
+        self.base_joints = base_joints
+        self.arm_joints = arm_joints
+        self.kitchen_items = kitchen_items
         self.iterations = iterations
         self.d = d
         self.goal_int = goal_int
         self.goal_biasing = goal_biasing
         self.run_rrtstar = run_rrtstar
-        self.get_random_arm_sample = self.get_sample_fn(self.world.robot, self.world.arm_joints)
-        self.get_random_base_sample = self.get_sample_fn(self.world.robot, self.world.base_joints)
+        self.get_random_arm_sample = self.get_sample_fn(self.robot, self.arm_joints)
+        self.get_random_base_sample = self.get_sample_fn(self.robot, self.base_joints)
         self.random_goal_sample = None
         # self.random_base_goal_sample = None
         self.arm_goal_tolerance = arm_goal_radius
         self.base_goal_radius = base_goal_radius
-
-        # goal_pos = translate_linearly(self.world, 1.2) 
-        # set_joint_positions(self.world.robot, self.world.base_joints, (0.75, 0, -3.14))
-    
-    def destroy_world(self):
-        # print("Destroying world object")
-        self.world.destroy()
     
     # Create a function to find the distance between two points
     def dist(self, a, b):
@@ -131,15 +128,15 @@ class MotionPlanner:
         return rand_joints
 
     def obst_free(self, x_nearest, x_new, body_to_plan):
-        # collisions = body_collision(self.world.robot, self.world.kitchen, max_distance=0.01)
+        # collisions = body_collision(self.robot, self.kitchen, max_distance=0.01)
         # if not collisions:
-        #     collisions = body_collision(self.world.robot, self.world.get_body('potted_meat_can1'), max_distance=0.01)
+        #     collisions = body_collision(self.robot, kitchen_items['potted_meat_can1'], max_distance=0.01)
         # if not collisions:
-        #     collisions = body_collision(self.world.robot, self.world.get_body('sugar_box0'), max_distance=0.01)
+        #     collisions = body_collision(self.robot, kitchen_items['sugar_box0'], max_distance=0.01)
         if body_to_plan == 'a':
-            set_joint_positions(self.world.robot, self.world.arm_joints, x_new)
+            set_joint_positions(self.robot, self.arm_joints, x_new)
         elif body_to_plan == 'b':
-            # theta = get_joint_positions(self.world.robot, self.world.base_joints)[2]
+            # theta = get_joint_positions(self.robot, self.base_joints)[2]
             theta = -1.57
 
             dir_vec = np.array(x_new) - np.array(x_nearest.pos)
@@ -154,10 +151,10 @@ class MotionPlanner:
             new_pos = (x_new + (new_theta,))
 
 
-            set_joint_positions(self.world.robot, self.world.base_joints, new_pos)
-            # set_joint_positions(self.world.robot, self.world.arm_joints, x_new[0:7])
+            set_joint_positions(self.robot, self.base_joints, new_pos)
+            # set_joint_positions(self.robot, self.arm_joints, x_new[0:7])
         
-        return not body_collision(self.world.robot, self.world.kitchen)
+        return not body_collision(self.robot, self.kitchen)
 
     def retrive_path(self, x_new):
         current_pos = x_new
@@ -170,8 +167,8 @@ class MotionPlanner:
     def in_end_region(self, x_new, end_pos, body_to_plan):
         print('Goal: ', end_pos)
         print('x_new:', x_new)
-        # set_joint_positions(self.world.robot, self.world.arm_joints, x_new)
-        # x_new_cart = get_link_pose(self.world.robot, link_from_name(self.world.robot, 'panda_hand'))[0]
+        # set_joint_positions(self.robot, self.arm_joints, x_new)
+        # x_new_cart = get_link_pose(self.robot, link_from_name(self.robot, 'panda_hand'))[0]
         # print('x_new_cart: ', x_new_cart)
 
         if body_to_plan == 'a':
@@ -192,11 +189,11 @@ class MotionPlanner:
         limits_dict = dict()
 
         if body_to_plan == 'a':
-            for joint, target_angle in zip(self.world.arm_joints, end_pos):
+            for joint, target_angle in zip(self.arm_joints, end_pos):
                 limits_dict[joint] = ((target_angle-self.arm_goal_tolerance), (target_angle + self.arm_goal_tolerance))
 
         elif body_to_plan == 'b':
-            for joint, target_pos in zip(self.world.base_joints[:2], end_pos):
+            for joint, target_pos in zip(self.base_joints[:2], end_pos):
                 limits_dict[joint] = ((target_pos-self.base_goal_radius), (target_pos + self.base_goal_radius))
 
         # print("Limits dict: ", limits_dict)
@@ -211,9 +208,9 @@ class MotionPlanner:
         goal_joint_limits = self.create_goal_limits(end_pos, body_to_plan)
 
         if body_to_plan == 'a':
-            self.random_goal_sample = self.get_sample_fn(self.world.robot, self.world.arm_joints, custom_limits=goal_joint_limits)
+            self.random_goal_sample = self.get_sample_fn(self.robot, self.arm_joints, custom_limits=goal_joint_limits)
         elif body_to_plan == 'b':
-            self.random_goal_sample = self.get_sample_fn(self.world.robot, self.world.base_joints, custom_limits=goal_joint_limits)
+            self.random_goal_sample = self.get_sample_fn(self.robot, self.base_joints, custom_limits=goal_joint_limits)
 
         path = None
 
@@ -227,7 +224,7 @@ class MotionPlanner:
         wait_for_user("Hit enter to start planning")
 
         # print("Start position: ", G[0].pos)
-        # base_pos = get_joint_positions(self.world.robot, self.world.base_joints)
+        # base_pos = get_joint_positions(self.robot, self.base_joints)
         # print('Starting base position: ', base_pos)
 
         for i in range(self.iterations): # Iterate
@@ -277,7 +274,7 @@ class MotionPlanner:
                     V.append(x_new)
                     obj = TreeNode(x_new, parent=x_nearest)
                     G.append(obj)
-                    cart_pos_t.append(get_link_pose(self.world.robot, link_from_name(self.world.robot, 'panda_hand'))[0])
+                    cart_pos_t.append(get_link_pose(self.robot, link_from_name(self.robot, 'panda_hand'))[0])
 
 
                     if self.in_end_region(x_new, end_pos, body_to_plan):
@@ -291,7 +288,7 @@ class MotionPlanner:
             return None
 
     def plan(self, start_pos, end_pos, body_to_plan):
-        # hand_pos_vec = np.array(get_link_pose(self.world.robot, link_from_name(self.world.robot, 'panda_hand'))[0])
+        # hand_pos_vec = np.array(get_link_pose(self.robot, link_from_name(self.robot, 'panda_hand'))[0])
 
         # end_pos_vec = np.array(end_pos)
 
