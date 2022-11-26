@@ -9,7 +9,7 @@ sys.path.extend(os.path.join(SUBMODULE_PATH, d) for d in ['pddlstream', 'ss-pybu
 
 from pybullet_tools.utils import set_pose, Pose, Point, Euler, multiply, get_pose, get_point, create_box, set_all_static, WorldSaver, create_plane, COLOR_FROM_NAME, stable_z_on_aabb, pairwise_collision, elapsed_time, get_aabb_extent, get_aabb, create_cylinder, set_point, get_function_name, wait_for_user, dump_world, set_random_seed, set_numpy_seed, get_random_seed, get_numpy_seed, set_camera, set_camera_pose, link_from_name, get_movable_joints, get_joint_name, get_joint_positions, set_joint_positions, set_joint_position, create_attachment, get_euler, quat_from_euler
 
-from pybullet_tools.utils import CIRCULAR_LIMITS, get_custom_limits, set_joint_positions, interval_generator, get_link_pose, interpolate_poses, get_collision_data, body_collision, Pose, Point
+from pybullet_tools.utils import CIRCULAR_LIMITS, get_custom_limits, set_joint_positions, interval_generator, get_link_pose, interpolate_poses, get_collision_data, body_collision, Pose, Point, get_link_names, get_all_links, get_joints, get_joint_names, euler_from_quat, get_joint_limits, is_movable
 
 from pybullet_tools.ikfast.ikfast import get_ik_joints, closest_inverse_kinematics
 from pybullet_tools.ikfast.franka_panda.ik import PANDA_INFO, FRANKA_URDF
@@ -94,7 +94,8 @@ while action_option != 2:
         6. Play with random samples\n \
         7. Move base forward\n \
         8. Play demo\n \
-        9. Locate objects and get joint angles\n")
+        9. Locate objects and get joint angles\n \
+        10. Locate indigo drawer handle\n")
     
     try:
         action_option = int(action_option.strip())
@@ -106,6 +107,7 @@ while action_option != 2:
         tool_link = link_from_name(world.robot, 'panda_hand')
         start_pose = get_link_pose(world.robot, tool_link)
         print("Pose of panda_hand: ", start_pose)
+        print("Euler angles of panda_hand: ", euler_from_quat(start_pose[1]))
 
         joints_pos = get_joint_positions(world.robot, world.arm_joints)
         arm_joint_names = [get_joint_name(world.robot, joint) for joint in world.arm_joints]
@@ -120,7 +122,7 @@ while action_option != 2:
         continue
 
     elif action_option == 3:
-        joint_set = input("Do you want to movethe arm (a) or the base (b)?")
+        joint_set = input("Do you want to movethe arm (a) or the base (b) or the drawer(d)?")
         joint_set = joint_set.strip()
 
         if joint_set == 'a':
@@ -133,6 +135,15 @@ while action_option != 2:
             joint_angles_str = joint_angles_str.split(',')
             joint_angles = tuple([float(element) for element in joint_angles_str])
             set_joint_positions(world.robot, world.base_joints, joint_angles)
+
+        elif joint_set == 'd':
+            drawer_joint = joint_from_name(world.kitchen, 'indigo_drawer_top_joint')
+            print("Drawer has the following joint limits: ", get_joint_limits(world.kitchen, drawer_joint))
+            drawer_pos = input("What position do you want the drawer at?")
+            drawer_pos = float(drawer_pos.strip())
+
+            set_joint_position(world.kitchen, drawer_joint, drawer_pos)
+
 
 
     elif action_option == 4:
@@ -319,6 +330,63 @@ while action_option != 2:
             user_selection = input("End or continue? ")
             user_selection.strip()
     
+    elif action_option == 10:
+
+        set_joint_positions(world.robot, world.base_joints, (0.7, 0.6, -math.pi/2))
+
+        user_choice = input("Would you like the drawer opened or closed?")
+        user_choice = user_choice.strip()
+
+        target_pose = get_link_pose(world.kitchen, link_from_name(world.kitchen, 'indigo_drawer_handle_top'))
+
+        target_pos, target_quat = target_pose
+        tool_target_pos = ((target_pos[0]+0.1), target_pos[1], target_pos[2])
+        orig_target_euler = euler_from_quat(target_quat)
+
+        tool_target_euler = (-orig_target_euler[0], orig_target_euler[1], (0.5*math.pi))
+        tool_target_quat = quat_from_euler(tool_target_euler)
+
+        tool_link = link_from_name(world.robot, 'panda_hand')
+
+        print("Attempting to get joint angles for target pose: ", target_pos, tool_target_euler)
+
+        target_joint_angles = next(closest_inverse_kinematics(world.robot, PANDA_INFO, tool_link, (tool_target_pos, tool_target_quat), max_time=0.05), None)
+
+        if target_joint_angles == None:
+            print("Unable to get target joint angles!")
+
+        else:
+            print("Setting arm to target joint angles!")
+            set_joint_positions(world.robot, world.arm_joints, target_joint_angles)
+
+            target_x, target_y, target_z = tool_target_pos
+            
+            if user_choice.lower() == 'opened':
+                end_pos = ((target_x + 0.4), target_y, target_z)
+            else:
+                end_pos = ((target_x - 0.4), target_y, target_z)
+
+            target_end_pose = (end_pos, tool_target_quat)
+
+            wait_for_user('Hit enter to open/close drawer')
+            
+            target_end_joint_angles = next(closest_inverse_kinematics(world.robot, PANDA_INFO, tool_link, target_end_pose, max_time=0.05), None)
+
+            if target_end_joint_angles == None:
+                print("Unable to get target end joint angles!")
+            
+            else:
+                set_joint_positions(world.robot, world.arm_joints, target_end_joint_angles)
+
+                if user_choice.lower() == 'opened':
+                    drawer_pos = 0.4
+                else:
+                    drawer_pos = 0
+
+                set_joint_position(world.kitchen, joint_from_name(world.kitchen, 'indigo_drawer_top_joint'), drawer_pos)
+        
+        
+
     else:
         print(action_option, " is an invalid input option! Please try again.")
 
