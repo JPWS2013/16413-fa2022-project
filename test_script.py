@@ -22,7 +22,7 @@ from src.world import World
 from src.utils import JOINT_TEMPLATE, BLOCK_SIZES, BLOCK_COLORS, COUNTERS, \
     ALL_JOINTS, LEFT_CAMERA, CAMERA_MATRIX, CAMERA_POSES, CAMERAS, compute_surface_aabb, \
     BLOCK_TEMPLATE, name_from_type, GRASP_TYPES, SIDE_GRASP, joint_from_name, \
-    STOVES, TOP_GRASP, randomize, LEFT_DOOR, point_from_pose, translate_linearly, get_grasps
+    STOVES, TOP_GRASP, randomize, LEFT_DOOR, point_from_pose, translate_linearly, get_grasps, set_tool_pose
 
 UNIT_POSE2D = (0., 0., 0.)
 
@@ -246,13 +246,18 @@ while action_option != 2:
 
     elif action_option == 9:
 
+        object_dict = {
+            'potted_meat_can1': (0.7, 0.3, -math.pi/2),
+            'sugar_box0': (0.7, 0.65 , -math.pi/2)
+        }
+
         user_obj = input("What object would you like to locate? ")
         user_obj = user_obj.strip()
 
         try:
             link = link_from_name(world.kitchen, user_obj)
             pose = get_link_pose(world.kitchen, link)
-            print("Location ", user_obj, " has coordinates: ", pose)
+            print("Location ", user_obj, " has pose: ", pose)
 
         except ValueError as e:
             try:
@@ -266,18 +271,31 @@ while action_option != 2:
                 print("Error getting coordinates for the following link: ", e, " Exiting!")
                 sys.exit(1)
 
+        set_joint_positions(world.robot, world.base_joints, object_dict[user_obj])
+
         tool_link = link_from_name(world.robot, 'panda_hand')
+
+        obj_lower, obj_upper = get_aabb(body)
+        obj_height = obj_upper[2] - obj_lower[2]
+
+        print("Object aabb is: ", obj_lower, obj_upper)
         
         user_selection = ''
+        x_shift_obj_orig = -0.01
+        y_shift_obj_orig = -0.13
         # tool_backoff_dist = 0.1 #Distance to back the tool off the object
-        x_backoff = (-0.01*math.cos(euler_angles[2])) - (-0.15*math.sin(euler_angles[2]))
-        y_backoff = (-0.01*math.sin(euler_angles[2])) + (-0.15*math.cos(euler_angles[2]))
+        x_backoff = (x_shift_obj_orig*math.cos(euler_angles[2])) - (y_shift_obj_orig*math.sin(euler_angles[2]))
+        y_backoff = (x_shift_obj_orig*math.sin(euler_angles[2])) + (y_shift_obj_orig*math.cos(euler_angles[2]))
 
-        euler_angles = (euler_angles[0], (-0.5*math.pi), (-math.pi/4))
-        coord = ((coord[0]+x_backoff), (coord[1]+y_backoff), (coord[2]+0.1)) #Raise z by 0.05 to be at the right height to grip object
-        pose = (coord, quat_from_euler(euler_angles))
+        tool_euler_angles = (euler_angles[0], (-0.5*math.pi), -euler_angles[2])
+        coord = ((coord[0]+x_backoff), (coord[1]+y_backoff), (coord[2]+(obj_height/2))) #Raise z by 0.05 to be at the right height to grip object
+        pose = (coord, quat_from_euler(tool_euler_angles))
 
-        print("Setting hand pose to: ", pose)
+        print("Calculated tool pose: ", pose)
+        wait_for_user("Setting tool pose now, press enter to confirm")
+        # set_tool_pose(world, pose)
+
+
 
         while user_selection != 'end':
             
