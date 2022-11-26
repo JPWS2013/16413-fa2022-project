@@ -11,7 +11,7 @@ from src.world import World
 from src.utils import JOINT_TEMPLATE, BLOCK_SIZES, BLOCK_COLORS, COUNTERS, \
     ALL_JOINTS, LEFT_CAMERA, CAMERA_MATRIX, CAMERA_POSES, CAMERAS, compute_surface_aabb, BLOCK_TEMPLATE, name_from_type, GRASP_TYPES, SIDE_GRASP, joint_from_name, STOVES, TOP_GRASP, randomize, LEFT_DOOR, point_from_pose, translate_linearly, create_surface_attachment, surface_from_name
 
-from pybullet_tools.utils import set_pose, Pose, Point, Euler, multiply, get_pose, get_point, create_box, set_all_static, WorldSaver, create_plane, COLOR_FROM_NAME, stable_z_on_aabb, pairwise_collision, elapsed_time, get_aabb_extent, get_aabb, create_cylinder, set_point, get_function_name, wait_for_user, dump_world, set_random_seed, set_numpy_seed, get_random_seed, get_numpy_seed, set_camera, set_camera_pose, link_from_name, get_movable_joints, get_joint_name, CIRCULAR_LIMITS, get_custom_limits, set_joint_positions, interval_generator, get_link_pose, interpolate_poses, get_all_links, get_link_names, get_link_inertial_pose, body_from_name, get_pose, get_link_name, get_bodies, dump_body, create_attachment, get_body_name, get_joint_positions, get_position_waypoints, get_quaternion_waypoints, quat_from_euler, euler_from_quat
+from pybullet_tools.utils import set_pose, Pose, Point, Euler, multiply, get_pose, get_point, create_box, set_all_static, WorldSaver, create_plane, COLOR_FROM_NAME, stable_z_on_aabb, pairwise_collision, elapsed_time, get_aabb_extent, get_aabb, create_cylinder, set_point, get_function_name, wait_for_user, dump_world, set_random_seed, set_numpy_seed, get_random_seed, get_numpy_seed, set_camera, set_camera_pose, link_from_name, get_movable_joints, get_joint_name, CIRCULAR_LIMITS, get_custom_limits, set_joint_positions, interval_generator, get_link_pose, interpolate_poses, get_all_links, get_link_names, get_link_inertial_pose, body_from_name, get_pose, get_link_name, get_bodies, dump_body, create_attachment, get_body_name, get_joint_positions, get_position_waypoints, get_quaternion_waypoints, quat_from_euler, euler_from_quat, get_joint_position, set_joint_position
 
 from pybullet_tools.ikfast.ikfast import closest_inverse_kinematics
 from pybullet_tools.ikfast.franka_panda.ik import PANDA_INFO, FRANKA_URDF
@@ -27,8 +27,12 @@ class ExecutionEngine():
         self.domain_filepath = domain_filepath
         self.parser = self.init_parser()
         self.world = self.create_world(use_gui=False)
+        self.tool_link = link_from_name(self.world.robot, 'panda_hand')
+        self.drawer_joint = joint_from_name(self.world.kitchen, 'indigo_drawer_top_joint')
+        self.drawer_link = link_from_name(self.world.kitchen, 'indigo_drawer_handle_top')
 
-        self.drawer_mvmt_dist = 0.2
+        self.drawer_mvmt_dist = 0.4
+        self.drawer_pos = dict()
 
         self.location_map, self.object_map, self.current_pos = self.create_maps()
 
@@ -37,6 +41,7 @@ class ExecutionEngine():
         object_dict = dict()
 
         self.active_attachment = None
+        self.drawer_status = None
 
         for item_name in self.object_map.keys():
             object_dict[item_name] = self.world.get_body(item_name)
@@ -109,9 +114,15 @@ class ExecutionEngine():
                 self.move_robot(base_path, arm_path)
             
             elif ('open' in action.lower()) or ('close' in action.lower()):
-                self.active_attachment = self.attachments[target]
-                self.move_robot(base_path, arm_path)
-                self.active_attachment = None
+                arm_path1, arm_path2 = arm_path
+                self.move_robot(base_path, arm_path1)
+                if 'open' in action.lower():
+                    self.drawer_status = 'opening'
+                else:
+                    self.drawer_status = 'closing'
+
+                self.move_robot(base_path, arm_path2)
+                self.drawer_status = None
 
             elif 'grip' in action.lower():
                 if not ((base_path==None) and (arm_path==None)):
@@ -138,6 +149,14 @@ class ExecutionEngine():
 
         set_joint_positions(self.world.robot, self.world.base_joints, (base_pos+(-math.pi/2,)))
 
+    def get_target_joint_angles(self, target_pose):
+        target_joint_angles = next(closest_inverse_kinematics(self.world.robot, PANDA_INFO, self.tool_link, target_pose, max_time=0.05), None)
+
+        if target_joint_angles == None:
+            raise ValueError("Unable to get joint angles!")
+        else:
+            return target_joint_angles
+
 
     def plan_action(self, action):
         print("    - Planning for action: ", action.name, action.parameters[1:])
@@ -162,17 +181,49 @@ class ExecutionEngine():
 
         if (action.name == 'open') or (action.name == 'close'):
             arm, target = action.parameters
-            target_x, target_y, target_z = self.object_map[target]
+
+
+            if target == "indigo_drawer_top":
+                orig_target_pose = get_link_pose(self.world.kitchen, self.drawer_link)
+            else:
+                raise ValueError("Unrecognized target for opening: " + str(target))
+
+            orig_target_pos, orig_target_quat = orig_target_pose
+            orig_target_x, orig_target_y, orig_target_z = orig_target_pos
+
+            self.drawer_pos['closed'] = orig_target_pos
+            self.drawer_pos['opened'] = ((orig_target_x+self.drawer_mvmt_dist), orig_target_y, orig_target_z)
+            
+            tool_target_pos = ((orig_target_x+0.1), orig_target_y, orig_target_z)
+            
+            orig_target_euler = euler_from_quat(orig_target_quat)
+            tool_target_euler = (-orig_target_euler[0], orig_target_euler[1], (0.5*math.pi))
+            tool_target_quat = quat_from_euler(tool_target_euler)
+
+            tool_target_pose = (tool_target_pos, tool_target_quat)
+
+            target_joint_angles = self.get_target_joint_angles(tool_target_pose)
+
+            base_path1, arm_path1 = self.motion_planner.plan(target_joint_angles, 'a')
+
+            self.update_robot_position(arm_path1[0], self.current_pos[7:])
+
+            tool_start_x, tool_start_y, tool_start_z = tool_target_pos
             
             if action.name == 'open':
-                end_pos = ((target_x + self.drawer_mvmt_dist), target_y, target_z)
+                end_pos = ((tool_start_x + self.drawer_mvmt_dist), tool_start_y, tool_start_z)
             else:
-                end_pos = ((target_x - self.drawer_mvmt_dist), target_y, target_z)
-            base_path, arm_path = self.motion_planner.plan(end_pos, 'a')
-            
-            self.update_robot_position(arm_path[0], self.current_pos[7:])
+                end_pos = ((tool_start_x - self.drawer_mvmt_dist), tool_start_y, tool_start_z)
 
-            return (target, None, arm_path)
+            target_end_pose = (end_pos, tool_target_quat)
+
+            target_end_joint_angles = self.get_target_joint_angles(target_end_pose)
+
+            base_path2, arm_path2 = self.motion_planner.plan(target_end_joint_angles, 'a')
+            
+            self.update_robot_position(arm_path2[0], self.current_pos[7:])
+
+            return (target, None, (arm_path1, arm_path2))
 
         if action.name == 'grip':
             arm, target, location = action.parameters
@@ -181,13 +232,7 @@ class ExecutionEngine():
             location_pos = self.location_map[location]
             print("Current robot base position: ", get_joint_positions(self.world.robot, self.world.base_joints))
 
-            tool_link = link_from_name(self.world.robot, 'panda_hand')
-
-            target_joint_angles = next(closest_inverse_kinematics(self.world.robot, PANDA_INFO, tool_link, target_pose, max_time=0.05), None)
-
-            if target_joint_angles == None:
-                raise ValueError("Unable to get joint angles!")
-
+            target_joint_angles = self.get_target_joint_angles(target_pose)
 
             if self.current_pos[:7] == target_joint_angles:
                 return (target, None, None)
@@ -202,6 +247,16 @@ class ExecutionEngine():
             arm, target, location = action.parameters
             return (target, None, None)
 
+    def update_objects(self, delta_x=None):
+        if self.active_attachment:
+            self.active_attachment.assign()
+
+        if self.drawer_status:
+            curr_drawer_pos = get_joint_position(self.world.kitchen, self.drawer_joint)
+            if self.drawer_status == 'opening':
+                set_joint_position(self.world.kitchen, self.drawer_joint, (curr_drawer_pos+abs(delta_x)))
+            else:
+                set_joint_position(self.world.kitchen, self.drawer_joint, (curr_drawer_pos-abs(delta_x)))
 
     def move_robot(self, base_path, arm_path):
         if base_path:
@@ -226,29 +281,25 @@ class ExecutionEngine():
 
                 next_pos_quat = quat_from_euler((0,0,new_theta))
 
+                #Rotate the base first if the current base heading doesn't match the next heading
                 if new_theta != self.current_pos[2]:
-                    
-                    # print("Rotating base first!")
-                    # wait_for_user()
 
                     for point, next_quat in get_quaternion_waypoints(self.current_pos[:2], quat_from_euler((0,0,self.current_pos[2])), next_pos_quat, step_size = math.pi/32):
                         set_joint_positions(self.world.robot, self.world.base_joints, (point+(euler_from_quat(next_quat)[2],)))
                         
-                        if self.active_attachment:
-                            self.active_attachment.assign()
+                        self.update_objects()
+
                         time.sleep(0.05)
 
                 self.current_pos = self.current_pos[:2] + (new_theta,)
-                # print("Translating base now")
-                # wait_for_user()
 
+                #Then translate the base
                 for next_point, quat in get_position_waypoints(self.current_pos[:2], dir_vec, next_pos_quat):
                     next_point = tuple(next_point)
                     # print("Next point: ", next_point)
                     set_joint_positions(self.world.robot, self.world.base_joints, (next_point + (new_theta,)))
 
-                    if self.active_attachment:
-                        self.active_attachment.assign()
+                    self.update_objects()
 
                     time.sleep(0.01)
 
@@ -262,22 +313,27 @@ class ExecutionEngine():
 
             # set_joint_positions(self.world.robot, self.world.base_joints, (self.current_pos[:2]+(-math.pi/2,)))
 
+            #Then rotate the base into its final heading when parked next to a countertop
             for point, next_quat in get_quaternion_waypoints(self.current_pos[:2], quat_from_euler((0,0,self.current_pos[2])), quat_from_euler((0,0,(-math.pi/2))), step_size=math.pi/32):
-                        set_joint_positions(self.world.robot, self.world.base_joints, (point+(euler_from_quat(next_quat)[2],)))
-                        
-                        if self.active_attachment:
-                            self.active_attachment.assign()
-                        
-                        time.sleep(0.05)
+                set_joint_positions(self.world.robot, self.world.base_joints, (point+(euler_from_quat(next_quat)[2],)))
+                
+                self.update_objects()
+                
+                time.sleep(0.05)
             
 
         if arm_path:
             arm_path.reverse()
 
             for arm_point in arm_path:
+                current_tool_pose = get_link_pose(self.world.robot, self.tool_link)
                 set_joint_positions(self.world.robot, self.world.arm_joints, arm_point)
-                if self.active_attachment:
-                    self.active_attachment.assign()
+                new_tool_pose = get_link_pose(self.world.robot, self.tool_link)
+
+                delta_x = new_tool_pose[0][0] - current_tool_pose[0][0]
+                
+                self.update_objects(delta_x)
+
                 time.sleep(0.5)
 
     
@@ -351,8 +407,12 @@ class ExecutionEngine():
                     link = link_from_name(self.world.kitchen, loc)
                     coord_x, coord_y, coord_z = get_link_pose(self.world.kitchen, link)[0]
 
-                    #For locations in the kitchen, park just in front of the counter which is about +0.8, leave y and z coordinates alone
-                    location_map[loc] = (0.7, coord_y)
+                    #For all indigo locations (countertop an drawer), stop beside the drawer so that the robot isn't blocking the drawer
+                    if "indigo" in loc:
+                        location_map[loc] = (0.7, 0.6)
+                    else:
+                    #For locations in the kitchen, park just in front of the counter which is about +0.7, leave y coordinate alone
+                        location_map[loc] = (0.7, coord_y)
 
                     # print("Location ", loc, " has coordinates: ", location_map[loc])
 
@@ -370,6 +430,8 @@ class ExecutionEngine():
             except ValueError as e:
                 print("Error getting coordinates for the following link: ", e, "Exiting!")
                 raise ValueError(e)
+
+        # object_map['indigo_drawer_handle_top'] = get_link_pose(self.world.kitchen, link_from_name(self.world.kitchen, 'indigo_drawer_handle_top'))
 
         # print("Location map: ", location_map)
         # print("Object map: ", object_map)
