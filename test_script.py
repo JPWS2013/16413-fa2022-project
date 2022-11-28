@@ -7,7 +7,7 @@ SUBMODULE_PATH= os.path.abspath(os.path.join(os.getcwd(), 'padm-project-2022f'))
 sys.path.append(SUBMODULE_PATH)
 sys.path.extend(os.path.join(SUBMODULE_PATH, d) for d in ['pddlstream', 'ss-pybullet'])
 
-from pybullet_tools.utils import set_pose, Pose, Point, Euler, multiply, get_pose, get_point, create_box, set_all_static, WorldSaver, create_plane, COLOR_FROM_NAME, stable_z_on_aabb, pairwise_collision, elapsed_time, get_aabb_extent, get_aabb, create_cylinder, set_point, get_function_name, wait_for_user, dump_world, set_random_seed, set_numpy_seed, get_random_seed, get_numpy_seed, set_camera, set_camera_pose, link_from_name, get_movable_joints, get_joint_name, get_joint_positions, set_joint_positions, set_joint_position, create_attachment, get_euler, quat_from_euler
+from pybullet_tools.utils import set_pose, Pose, Point, Euler, multiply, get_pose, get_point, create_box, set_all_static, WorldSaver, create_plane, COLOR_FROM_NAME, stable_z_on_aabb, pairwise_collision, elapsed_time, get_aabb_extent, get_aabb, create_cylinder, set_point, get_function_name, wait_for_user, dump_world, set_random_seed, set_numpy_seed, get_random_seed, get_numpy_seed, set_camera, set_camera_pose, link_from_name, get_movable_joints, get_joint_name, get_joint_positions, set_joint_positions, set_joint_position, create_attachment, get_euler, quat_from_euler, any_link_pair_collision, expand_links
 
 from pybullet_tools.utils import CIRCULAR_LIMITS, get_custom_limits, set_joint_positions, interval_generator, get_link_pose, interpolate_poses, get_collision_data, body_collision, Pose, Point, get_link_names, get_all_links, get_joints, get_joint_names, euler_from_quat, get_joint_limits, is_movable
 
@@ -206,7 +206,15 @@ while action_option != 2:
         print('get_collision_data returned:', collision_data)
 
         body_collision_val = body_collision(world.robot, world.kitchen)
-        print('body_collision_val is:', body_collision_val)
+        # body_collision_val_new = any_link_pair_collision(world.robot, None, world.robot)
+        robot, robot_links = expand_links(world.robot)
+        robot_link_names = get_link_names(world.robot, robot_links)
+        collision_links = []
+        for link_name, link in zip(robot_link_names, robot_links):
+            if 'panda_hand' in link_name or 'panda_link' in link_name:
+                collision_links.append(link)
+        body_collision_val_new = any_link_pair_collision(world.robot, collision_links, world.robot, collision_links,)
+        print('body_collision_val_new', body_collision_val_new)
 
     elif action_option == 6:
         print("Getting random sample")

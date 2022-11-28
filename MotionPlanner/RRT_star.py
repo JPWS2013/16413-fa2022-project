@@ -127,7 +127,20 @@ class MotionPlanner:
 
         return rand_joints
 
+    def collision_free(self, x_nearest, x_new, body_to_plan):
+        item_collision = False
+        for item in self.kitchen_items:
+            if body_collision(self.robot, item):
+                item_collision = True
+        autorobotic_collision = body_collision(self.robot, self.robot)
+        print('self.robot', self.robot)
+        collision_with_kitchen = body_collision(self.robot, self.kitchen)
+
+        return (not collision_with_kitchen) and (not item_collision) and (not autorobotic_collision )
+
+
     def obst_free(self, x_nearest, x_new, body_to_plan):
+        print('self.robot', self.robot)
         # collisions = body_collision(self.robot, self.kitchen, max_distance=0.01)
         # if not collisions:
         #     collisions = body_collision(self.robot, kitchen_items['potted_meat_can1'], max_distance=0.01)
