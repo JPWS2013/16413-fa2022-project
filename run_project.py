@@ -85,7 +85,7 @@ class ExecutionEngine():
             plan_dict[action.name+str(action.parameters)] = self.plan_action(action)
             wait_for_user()
             
-            if i >= 3:
+            if i >= 7:
                 break
             # start_pos, end_pos = get_positions()
             # motion_plan = self.mp.solve(start_pos, end_pos)
@@ -147,7 +147,7 @@ class ExecutionEngine():
 
         set_joint_positions(self.world.robot, self.world.arm_joints, self.current_pos[:7])
 
-        set_joint_positions(self.world.robot, self.world.base_joints, (base_pos+(-math.pi/2,)))
+        set_joint_positions(self.world.robot, self.world.base_joints, base_pos)
 
     def get_target_joint_angles(self, target_pose):
         target_joint_angles = next(closest_inverse_kinematics(self.world.robot, PANDA_INFO, self.tool_link, target_pose, max_time=0.05), None)
@@ -166,14 +166,15 @@ class ExecutionEngine():
             
             if end_pos_name in self.location_map.keys():
                 end_pos = self.location_map[end_pos_name]
-                base_path, arm_path = self.motion_planner.plan(end_pos, 'b')
 
             # elif end_pos_name in self.object_map.keys():
             #     end_pos = self.object_map[end_pos_name, 'a']
             else:
                 raise ValueError(end_pos_name + " not in location map!")
             
-            self.update_robot_position(self.current_pos[0:7], base_path[0])
+            base_path, arm_path = self.motion_planner.plan(end_pos, 'b')
+
+            self.update_robot_position(self.current_pos[0:7], base_path[-1])
 
             # set_joint_positions(self.world.robot, self.world.base_joints, (base_path[0]+(-math.pi/2)))
             
@@ -220,7 +221,7 @@ class ExecutionEngine():
             target_end_joint_angles = self.get_target_joint_angles(target_end_pose)
 
             base_path2, arm_path2 = self.motion_planner.plan(target_end_joint_angles, 'a')
-            
+
             self.update_robot_position(arm_path2[0], self.current_pos[7:])
 
             return (target, None, (arm_path1, arm_path2))
@@ -260,7 +261,7 @@ class ExecutionEngine():
 
     def move_robot(self, base_path, arm_path):
         if base_path:
-            base_path.reverse()
+            # base_path.reverse()
             
             for next_base_point in base_path:
 
@@ -328,7 +329,7 @@ class ExecutionEngine():
             
 
         if arm_path:
-            arm_path.reverse()
+            # arm_path.reverse()
 
             for arm_point in arm_path:
                 current_tool_pose = get_link_pose(self.world.robot, self.tool_link)
