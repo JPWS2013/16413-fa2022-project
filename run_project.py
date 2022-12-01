@@ -85,7 +85,7 @@ class ExecutionEngine():
             plan_dict[action.name+str(action.parameters)] = self.plan_action(action)
             wait_for_user()
             
-            if i >= 7:
+            if i >= 3:
                 break
             # start_pos, end_pos = get_positions()
             # motion_plan = self.mp.solve(start_pos, end_pos)
@@ -263,63 +263,68 @@ class ExecutionEngine():
             base_path.reverse()
             
             for next_base_point in base_path:
-                # print("Current point: ", self.current_pos)
-                
-                dir_vec = np.array(next_base_point)- np.array(self.current_pos[-3:-1])
 
-                delta_theta = math.atan(dir_vec[1]/dir_vec[0])
-
-                if (dir_vec[0]>0):
-                    new_theta = delta_theta
-                else:
-                    new_theta = -math.pi + delta_theta
-                
-                next_pos = next_base_point+(new_theta,)
-
-                # print("Dir vec: ", dir_vec, " and delta theta: ", delta_theta, "(", math.degrees(delta_theta), "degrees)")
-                # print("Next point: ", next_pos, "(New theta of ", math.degrees(new_theta), "degrees)")
-
-                next_pos_quat = quat_from_euler((0,0,new_theta))
-
-                #Rotate the base first if the current base heading doesn't match the next heading
-                if new_theta != self.current_pos[-1]:
-
-                    for point, next_quat in get_quaternion_waypoints(self.current_pos[-3:-1], quat_from_euler((0,0,self.current_pos[-1])), next_pos_quat, step_size = math.pi/32):
-                        set_joint_positions(self.world.robot, self.world.base_joints, (point+(euler_from_quat(next_quat)[2],)))
-                        
-                        self.update_objects()
-
-                        time.sleep(0.05)
-
-                self.current_pos = self.current_pos[:-1] + (new_theta,)
-
-                #Then translate the base
-                for next_point, quat in get_position_waypoints(self.current_pos[-3:-1], dir_vec, next_pos_quat):
-                    next_point = tuple(next_point)
-                    # print("Next point: ", next_point)
-                    set_joint_positions(self.world.robot, self.world.base_joints, (next_point + (new_theta,)))
-
-                    self.update_objects()
-
-                    time.sleep(0.01)
-
-                self.current_pos = self.current_pos[:7] + next_base_point + (new_theta,)
-                
-                # if self.active_attachment:
-                #     self.active_attachment.assign()
-
-                
-                # time.sleep(0.1)
-
-            # set_joint_positions(self.world.robot, self.world.base_joints, (self.current_pos[:2]+(-math.pi/2,)))
-
-            #Then rotate the base into its final heading when parked next to a countertop
-            for point, next_quat in get_quaternion_waypoints(self.current_pos[-3:-1], quat_from_euler((0,0,self.current_pos[-1])), quat_from_euler((0,0,(-math.pi/2))), step_size=math.pi/32):
-                set_joint_positions(self.world.robot, self.world.base_joints, (point+(euler_from_quat(next_quat)[2],)))
-                
+                set_joint_positions(self.world.robot, self.world.base_joints, next_base_point)
                 self.update_objects()
-                
+                self.current_pos = self.current_pos[:7] + next_base_point
+
                 time.sleep(0.05)
+                
+            #     dir_vec = np.array(next_base_point)- np.array(self.current_pos[-3:-1])
+
+            #     delta_theta = math.atan(dir_vec[1]/dir_vec[0])
+
+            #     if (dir_vec[0]>0):
+            #         new_theta = delta_theta
+            #     else:
+            #         new_theta = -math.pi + delta_theta
+                
+            #     next_pos = next_base_point+(new_theta,)
+
+            #     # print("Dir vec: ", dir_vec, " and delta theta: ", delta_theta, "(", math.degrees(delta_theta), "degrees)")
+            #     # print("Next point: ", next_pos, "(New theta of ", math.degrees(new_theta), "degrees)")
+
+            #     next_pos_quat = quat_from_euler((0,0,new_theta))
+
+            #     #Rotate the base first if the current base heading doesn't match the next heading
+            #     if new_theta != self.current_pos[-1]:
+
+            #         for point, next_quat in get_quaternion_waypoints(self.current_pos[-3:-1], quat_from_euler((0,0,self.current_pos[-1])), next_pos_quat, step_size = math.pi/32):
+            #             set_joint_positions(self.world.robot, self.world.base_joints, (point+(euler_from_quat(next_quat)[2],)))
+                        
+            #             self.update_objects()
+
+            #             time.sleep(0.05)
+
+            #     self.current_pos = self.current_pos[:-1] + (new_theta,)
+
+            #     #Then translate the base
+            #     for next_point, quat in get_position_waypoints(self.current_pos[-3:-1], dir_vec, next_pos_quat):
+            #         next_point = tuple(next_point)
+            #         # print("Next point: ", next_point)
+            #         set_joint_positions(self.world.robot, self.world.base_joints, (next_point + (new_theta,)))
+
+            #         self.update_objects()
+
+            #         time.sleep(0.01)
+
+            #     self.current_pos = self.current_pos[:7] + next_base_point + (new_theta,)
+                
+            #     # if self.active_attachment:
+            #     #     self.active_attachment.assign()
+
+                
+            #     # time.sleep(0.1)
+
+            # # set_joint_positions(self.world.robot, self.world.base_joints, (self.current_pos[:2]+(-math.pi/2,)))
+
+            # #Then rotate the base into its final heading when parked next to a countertop
+            # for point, next_quat in get_quaternion_waypoints(self.current_pos[-3:-1], quat_from_euler((0,0,self.current_pos[-1])), quat_from_euler((0,0,(-math.pi/2))), step_size=math.pi/32):
+            #     set_joint_positions(self.world.robot, self.world.base_joints, (point+(euler_from_quat(next_quat)[2],)))
+                
+            #     self.update_objects()
+                
+            #     time.sleep(0.05)
             
 
         if arm_path:

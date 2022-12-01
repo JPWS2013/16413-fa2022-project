@@ -3,6 +3,7 @@ import numpy as np
 from scipy.spatial import KDTree
 import sys, os, math
 import matplotlib.pyplot as plt
+import utils
 
 SUBMODULE_PATH= os.path.abspath(os.path.join(os.getcwd(), 'padm-project-2022f'))
 sys.path.append(SUBMODULE_PATH)
@@ -17,10 +18,12 @@ from src.utils import translate_linearly
 
 
 class TreeNode(object):
-    def __init__(self, pos, cost=0, parent=None):
+    def __init__(self, pos, theta, cost=0, parent=None, path=None):
         self.parent = parent
         self.pos = pos
+        self.interpolated_path = path
         self.cost = cost
+        self.theta = theta
 
 class MotionPlanner:
     def __init__(self, robot, kitchen, base_joints, arm_joints, kitchen_items, iterations=10000, d=0.5, goal_int=20, goal_biasing=True, run_rrtstar=False, arm_goal_radius = 0.03, base_goal_radius = 0.023):
@@ -127,16 +130,19 @@ class MotionPlanner:
 
         return rand_joints
 
-    def collision_free(self, x_nearest, x_new, body_to_plan):
-        item_collision = False
+    def collision_free(self):
+
+        # Check if robot is in collision with items in the kitchen
         for item in self.kitchen_items:
             if body_collision(self.robot, item):
-                item_collision = True
-        autorobotic_collision = body_collision(self.robot, self.robot)
-        print('self.robot', self.robot)
-        collision_with_kitchen = body_collision(self.robot, self.kitchen)
+                return False
+        # Check if robot is in collision with itself
+        # autorobotic_collision = body_collision(self.robot, self.robot)
+        # print('self.robot', self.robot)
+        if body_collision(self.robot, self.kitchen):
+            return False
 
-        return (not collision_with_kitchen) and (not item_collision) and (not autorobotic_collision )
+        return True
 
 
     def obst_free(self, x_nearest, x_new, body_to_plan):
@@ -146,35 +152,54 @@ class MotionPlanner:
         #     collisions = body_collision(self.robot, kitchen_items['potted_meat_can1'], max_distance=0.01)
         # if not collisions:
         #     collisions = body_collision(self.robot, kitchen_items['sugar_box0'], max_distance=0.01)
+        interpolated_path = list()
+
         if body_to_plan == 'a':
             set_joint_positions(self.robot, self.arm_joints, x_new)
         elif body_to_plan == 'b':
             # theta = get_joint_positions(self.robot, self.base_joints)[2]
-            theta = -1.57
+            current_theta = x_nearest.theta
 
-            dir_vec = np.array(x_new) - np.array(x_nearest.pos)
-
-            delta_theta = math.atan(dir_vec[1]/dir_vec[0])
-
-            if (dir_vec[0]>0):
-                new_theta = delta_theta
-            else:
-                new_theta = -math.pi + delta_theta
-
+            new_theta = utils.get_new_theta(x_nearest.pos, x_new)
+            new_quat = quat_from_euler((0,0,new_theta))
             new_pos = (x_new + (new_theta,))
 
+            #Rotate the base first if the current base heading doesn't match the next heading
+            if new_theta != x_nearest.theta:
+                for point, next_quat in get_quaternion_waypoints(x_nearest.pos, quat_from_euler((0,0,x_nearest.theta)), new_quat, step_size = math.pi/32):
+                    next_pos = point+(euler_from_quat(next_quat)[2],)
+                    set_joint_positions(self.world.robot, self.world.base_joints, next_pos)
+                    interpolated_path.append(next_pos)
+                    if not self.collision_free():
+                        return False, None
 
-            set_joint_positions(self.robot, self.base_joints, new_pos)
-            # set_joint_positions(self.robot, self.arm_joints, x_new[0:7])
-        
-        return not body_collision(self.robot, self.kitchen)
+            #Then translate the base
+            for next_point, quat in get_position_waypoints(self.current_pos[-3:-1], dir_vec, next_pos_quat):
+                next_point = tuple(next_point)
+                next_pos = (next_point + (new_theta,))
+                # print("Next point: ", next_point)
+                set_joint_positions(self.world.robot, self.world.base_joints, next_pos)
+                interpolated_path.append(next_pos)
+
+                if not self.collision_free():
+                    return False, None
+
+        return True, interpolated_path
 
     def retrive_path(self, x_new):
         current_pos = x_new
         path = []
         while current_pos.parent != None:  
-            path.append(current_pos.pos)
+            path += current_pos.interpolated_path
             current_pos = current_pos.parent
+
+        # if (path[0][2] <= 0) or (path[0][2] >= -math.pi):
+        #     final_rotation_path = [ (point + (euler_from_quat(next_quat)[2],)) for point, next_quat in get_quaternion_waypoints(path[0][:2], path[0][2], quat_from_euler(0,0,-math.pi/2), step_size = math.pi/32) ]
+        # else:
+        #     final_rotation_path = [ (point + (euler_from_quat(next_quat)[2],)) for point, next_quat in get_quaternion_waypoints(path[0][:2], path[0][2], quat_from_euler(0,0,math.pi/2), step_size = math.pi/32) ]
+        
+        # path += final_rotation_path
+        
         return path
 
     def in_end_region(self, x_new, end_pos, body_to_plan):
@@ -206,7 +231,7 @@ class MotionPlanner:
                 limits_dict[joint] = ((target_angle-self.arm_goal_tolerance), (target_angle + self.arm_goal_tolerance))
 
         elif body_to_plan == 'b':
-            for joint, target_pos in zip(self.base_joints[:2], end_pos):
+            for joint, target_pos in zip(self.base_joints[:2], end_pos[:2]):
 
                 if joint == 'x':
                     limits_dict[joint] = (target_pos, (target_pos + self.base_goal_radius))
@@ -218,7 +243,7 @@ class MotionPlanner:
 
         return limits_dict
     
-    def solve(self, start_pos, end_pos, body_to_plan):
+    def solve(self, start_pos_with_heading, end_pos_with_heading, body_to_plan):
 
         print("Starting position: ", start_pos)
         print("Goal position: ", end_pos)
@@ -230,10 +255,14 @@ class MotionPlanner:
         elif body_to_plan == 'b':
             self.random_goal_sample = self.get_sample_fn(self.robot, self.base_joints, custom_limits=goal_joint_limits)
 
+        start_pos = start_pos_with_heading[:2]
+        start_heading = start_pos_with_heading[2]
+        end_pos = end_pos_with_heading[:2]
+
         path = None
 
         V = [start_pos] # Create a list of node positions
-        G = [TreeNode(start_pos, cost=0, parent=None)] # Create a list of TreeNode objects
+        G = [TreeNode(start_pos, start_heading)] # Create a list of TreeNode objects
         found = 0 # Variable to keep track of if we've made it to the goal
         cart_pos_t = []
 
@@ -286,11 +315,11 @@ class MotionPlanner:
             
             #This runs rrt instead of rrt*
             else:
-                is_obstacle_free = self.obst_free(x_nearest, x_new, body_to_plan)
+                is_obstacle_free, interpolated_path = self.obst_free(x_nearest, x_new, body_to_plan)
                 # print('Is new arm position obstacle free? ', is_obstacle_free)
                 if is_obstacle_free and (x_new not in V):
                     V.append(x_new)
-                    obj = TreeNode(x_new, parent=x_nearest)
+                    obj = TreeNode(x_new, parent=x_nearest, path = interpolated_path)
                     G.append(obj)
                     cart_pos_t.append(get_link_pose(self.robot, link_from_name(self.robot, 'panda_hand'))[0])
 
@@ -323,7 +352,7 @@ class MotionPlanner:
         
 
         if body_to_plan == 'b':
-            start_pos = get_joint_positions(self.robot, self.base_joints)[:2]
+            start_pos = get_joint_positions(self.robot, self.base_joints)
             path_base = self.solve(start_pos, end_pos, body_to_plan)
         
         elif body_to_plan == 'a':  
