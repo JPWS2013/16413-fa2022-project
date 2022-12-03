@@ -23,30 +23,36 @@ UNIT_POSE2D = (0., 0., 0.)
 
 class ExecutionEngine():
     def __init__(self, problem_filepath, domain_filepath):
+        # Parse the PDDL files for activity planning
         self.problem_filepath = problem_filepath
         self.domain_filepath = domain_filepath
         self.parser = self.init_parser()
+
+        # Create the simulated world
         self.world = self.create_world(use_gui=False)
+
+        # Get the various links in the world needed for motion planning later
         self.tool_link = link_from_name(self.world.robot, 'panda_hand')
         self.drawer_joint = joint_from_name(self.world.kitchen, 'indigo_drawer_top_joint')
         self.drawer_link = link_from_name(self.world.kitchen, 'indigo_drawer_handle_top')
 
-        self.drawer_mvmt_dist = 0.4
-        self.drawer_pos = dict()
+        # Map location and object names to locations in the world and also get the starting (current) position of the robot in the world
+        # location_map: A dictionary mapping kitchen locations to (x,y) positions
+        # object_map: A dictionary mapping object names to ((x,y,z), quat) poses that the robot tool needs to be in
+        # Object_dict: A dictionary mapping object names to the object itself
+        # current_pos: The current position of the robot's various joints (joint1 angle, joint2 angle, joint3 angle, joint4 angle, joint5 angle, joint6 angle, joint7 angle, base_x position, base_y position)
+        self.location_map, self.object_map, self.object_dict, self.current_pos = self.create_maps()
 
-        self.location_map, self.object_map, self.current_pos = self.create_maps()
+        # Establish relevant movement constraints
+        self.drawer_mvmt_dist = 0.4 #When opening the drawer, drawer only opens 0.4m
 
-        print("Object map: ", self.object_map)
+        # print("Object map: ", self.object_map)
 
-        object_dict = dict()
+        # Set up variables to determine attachments of the robot to objects and furniture
+        self.active_attachment = None #Determines the object being grasped by the tool (if not None)
+        self.drawer_status = None #Determines whether the drawer is being opened or closed (if not None)
 
-        self.active_attachment = None
-        self.drawer_status = None
-
-        for item_name in self.object_map.keys():
-            object_dict[item_name] = self.world.get_body(item_name)
-
-
+        # Initialize the motion planner object for motion planning
         self.motion_planner = mp.MotionPlanner(self.world.robot, self.world.kitchen, self.world.base_joints, self.world.arm_joints, object_dict)
 
     def end(self):
@@ -87,22 +93,17 @@ class ExecutionEngine():
             
             if i >= 7:
                 break
-            # start_pos, end_pos = get_positions()
-            # motion_plan = self.mp.solve(start_pos, end_pos)
-            # self.execute(motion_plan)
 
+        # Once motion planning is complete, destroy the old world object so that a new one can be created that uses the gui
         self.end()
-
         self.world = self.create_world(use_gui=True)
 
-        # print("Plan dict: ", plan_dict)
-
+        # Reset the variables keeping track of the current pos to the starting point of the robot before starting to execute the plans
         self.current_pos = self.location_map['start_pos']
         self.current_pos = (self.current_pos)+(-math.pi,)
-        print("Current pos before executing plan:" , self.current_pos)
-        
-        print("Step 3: Executing Plan")
+        # print("Current pos before executing plan:" , self.current_pos)
 
+        print("Step 3: Executing Plan")
         self.execute_plan(plan_dict)
 
     def execute_plan(self, plan_dict):
@@ -193,9 +194,6 @@ class ExecutionEngine():
 
             orig_target_pos, orig_target_quat = orig_target_pose
             orig_target_x, orig_target_y, orig_target_z = orig_target_pos
-
-            self.drawer_pos['closed'] = orig_target_pos
-            self.drawer_pos['opened'] = ((orig_target_x+self.drawer_mvmt_dist), orig_target_y, orig_target_z)
             
             tool_target_pos = ((orig_target_x+0.1), orig_target_y, orig_target_z)
             
@@ -282,62 +280,6 @@ class ExecutionEngine():
                 self.current_pos = self.current_pos[:7] + next_base_point
 
                 time.sleep(0.05)
-                
-            #     dir_vec = np.array(next_base_point)- np.array(self.current_pos[-3:-1])
-
-            #     delta_theta = math.atan(dir_vec[1]/dir_vec[0])
-
-            #     if (dir_vec[0]>0):
-            #         new_theta = delta_theta
-            #     else:
-            #         new_theta = -math.pi + delta_theta
-                
-            #     next_pos = next_base_point+(new_theta,)
-
-            #     # print("Dir vec: ", dir_vec, " and delta theta: ", delta_theta, "(", math.degrees(delta_theta), "degrees)")
-            #     # print("Next point: ", next_pos, "(New theta of ", math.degrees(new_theta), "degrees)")
-
-            #     next_pos_quat = quat_from_euler((0,0,new_theta))
-
-            #     #Rotate the base first if the current base heading doesn't match the next heading
-            #     if new_theta != self.current_pos[-1]:
-
-            #         for point, next_quat in get_quaternion_waypoints(self.current_pos[-3:-1], quat_from_euler((0,0,self.current_pos[-1])), next_pos_quat, step_size = math.pi/32):
-            #             set_joint_positions(self.world.robot, self.world.base_joints, (point+(euler_from_quat(next_quat)[2],)))
-                        
-            #             self.update_objects()
-
-            #             time.sleep(0.05)
-
-            #     self.current_pos = self.current_pos[:-1] + (new_theta,)
-
-            #     #Then translate the base
-            #     for next_point, quat in get_position_waypoints(self.current_pos[-3:-1], dir_vec, next_pos_quat):
-            #         next_point = tuple(next_point)
-            #         # print("Next point: ", next_point)
-            #         set_joint_positions(self.world.robot, self.world.base_joints, (next_point + (new_theta,)))
-
-            #         self.update_objects()
-
-            #         time.sleep(0.01)
-
-            #     self.current_pos = self.current_pos[:7] + next_base_point + (new_theta,)
-                
-            #     # if self.active_attachment:
-            #     #     self.active_attachment.assign()
-
-                
-            #     # time.sleep(0.1)
-
-            # # set_joint_positions(self.world.robot, self.world.base_joints, (self.current_pos[:2]+(-math.pi/2,)))
-
-            # #Then rotate the base into its final heading when parked next to a countertop
-            # for point, next_quat in get_quaternion_waypoints(self.current_pos[-3:-1], quat_from_euler((0,0,self.current_pos[-1])), quat_from_euler((0,0,(-math.pi/2))), step_size=math.pi/32):
-            #     set_joint_positions(self.world.robot, self.world.base_joints, (point+(euler_from_quat(next_quat)[2],)))
-                
-            #     self.update_objects()
-                
-            #     time.sleep(0.05)
             
 
         if arm_path:
@@ -380,16 +322,6 @@ class ExecutionEngine():
         spam_box = add_spam_box(world, idx=1, counter=0, pose2d=(0.2, 1.1, np.pi / 4))
         world._update_initial()
 
-        # if create_att:
-        #     self.attachments = dict()
-
-        #     self.attachments[sugar_box] = create_attachment(self.world.robot, link_from_name(world.robot, 'panda_hand'), self.world.get_body(sugar_box))
-
-        #     self.attachments[spam_box] = create_attachment(self.world.robot, link_from_name(world.robot, 'panda_hand'), self.world.get_body(spam_box))
-
-            # self.attachments['indigo_drawer_top'] = create_attachment(self.world.robot, link_from_name(world.robot, 'panda_hand'), surface_from_name('indigo_drawer_top'))
-            # print('Attachments:', self.attachments)
-
         return world
 
     def add_ycb(self, world, ycb_type, idx=0, counter=0, **kwargs):
@@ -413,6 +345,7 @@ class ExecutionEngine():
         
         location_map = dict()
         object_map = dict()
+        object_dict = dict()
 
         # Get the 3D coordinates for all locations in the kitchen
         for loc in locations:
@@ -436,7 +369,8 @@ class ExecutionEngine():
 
             except ValueError as e:
                 print("Error getting coordinates for the following link: ", e, " Exiting!")
-                sys.exit(1)
+                raise ValueError(e)
+
 
         for each_item in items:
             try:
@@ -444,17 +378,13 @@ class ExecutionEngine():
                 target_coords = self.get_target_object_pose(body, each_item)
                 print("Item ", each_item, "has coordinates ", target_coords)
                 object_map[each_item] = target_coords
+                object_dict[each_item] = body
             
             except ValueError as e:
                 print("Error getting coordinates for the following link: ", e, "Exiting!")
                 raise ValueError(e)
 
-        # object_map['indigo_drawer_handle_top'] = get_link_pose(self.world.kitchen, link_from_name(self.world.kitchen, 'indigo_drawer_handle_top'))
-
-        # print("Location map: ", location_map)
-        # print("Object map: ", object_map)
-
-        return location_map, object_map, arm_init + base_init
+        return location_map, object_map, object_dict, arm_init + base_init
 
     def get_target_object_pose(self, body, name):
         #TODO: Get the actual body pose from the world using get_pose(body)[0]
@@ -479,12 +409,7 @@ class ExecutionEngine():
         
         else:
             raise ValueError(name)
-
-
-
-
         
-
     def execute(motion_plan):
         pass
 
@@ -502,5 +427,3 @@ if __name__ == "__main__":
     except Exception as e:
         engine.end()
         print(traceback.format_exc())
-
-    
