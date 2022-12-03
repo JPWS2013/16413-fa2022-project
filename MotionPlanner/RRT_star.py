@@ -25,7 +25,7 @@ class TreeNode(object):
         self.theta = theta
 
 class MotionPlanner:
-    def __init__(self, robot, kitchen, base_joints, arm_joints, kitchen_items, iterations=100000, base_d=0.75, arm_d = 0.5, goal_int=20, goal_biasing=True, run_rrtstar=False, arm_goal_radius = 0.05, base_goal_radius = 0.021):
+    def __init__(self, robot, kitchen, base_joints, arm_joints, kitchen_items, iterations=10000, base_d=0.75, arm_d = 0.5, goal_int=20, goal_biasing=True, run_rrtstar=False, arm_goal_radius = 0.05, base_goal_radius = 0.01):
         self.robot = robot
         self.kitchen = kitchen
         self.base_joints = base_joints
@@ -323,15 +323,15 @@ class MotionPlanner:
             if i % 200 == 0:
                 print("i=", i)
 
-            if (i % 1000 == 0) and (i != 0) and (body_to_plan == 'b'):
-                x_t, y_t = zip(*V)
-                x_t = [-x for x in x_t]
-                fig, ax = plt.subplots()
-                ax.scatter(y_t, x_t)
-                ax.scatter(end_pos[1], -end_pos[0], c='r')
-                cir = plt.Circle((end_pos[1], -end_pos[0]), self.base_goal_radius, color='r',fill=False, linestyle = '--')
-                ax.add_patch(cir)
-                plt.show()
+            # if (i % 1000 == 0) and (i != 0) and (body_to_plan == 'b'):
+            #     x_t, y_t = zip(*V)
+            #     x_t = [-x for x in x_t]
+            #     fig, ax = plt.subplots()
+            #     ax.scatter(y_t, x_t)
+            #     ax.scatter(end_pos[1], -end_pos[0], c='r')
+            #     cir = plt.Circle((end_pos[1], -end_pos[0]), self.base_goal_radius, color='r',fill=False, linestyle = '--')
+            #     ax.add_patch(cir)
+            #     plt.show()
 
             if (self.goal_biasing) and (i % self.goal_int == 0): # Every 20 iterations take the random sample from inside the goal area (goal biasing)
                 # print("Sampling from goal region")

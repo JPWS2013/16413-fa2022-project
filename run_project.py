@@ -136,6 +136,8 @@ class ExecutionEngine():
                 # self.active_attachment = self.attachments[target]
 
             elif ('placein' in action) or ('placeon' in action):
+                if not ((base_path==None) and (arm_path==None)):
+                    self.move_robot(base_path, arm_path)
                 self.active_attachment = None
 
             else:
@@ -246,7 +248,17 @@ class ExecutionEngine():
 
         if (action.name == 'placein') or (action.name == 'placeon'):
             arm, target, location = action.parameters
-            return (target, None, None)
+
+            link = link_from_name(self.world.kitchen, location)
+            target_pose = get_link_pose(self.world.kitchen, link)
+            target_pose = ((target_pose[0][0], target_pose[0][1], (target_pose[0][2]+0.1)), target_pose[1] )
+            print("Target pose for ", target, ':', target_pose)
+            target_joint_angles = self.get_target_joint_angles(target_pose)
+
+            base_path, arm_path = self.motion_planner.plan(target_joint_angles, 'a')
+            self.update_robot_position(arm_path[0], self.current_pos[7:])
+                
+            return(target, None, arm_path)
 
     def update_objects(self, delta_x=None):
         if self.active_attachment:
