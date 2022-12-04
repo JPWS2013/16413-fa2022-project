@@ -64,6 +64,7 @@ class ExecutionEngine():
         print("Step 1: Getting activity plan.....")
         act_plan = self.get_activity_plan()
 
+        # Print the activity plan to screen
         print("Identified activity plan: ")
         for action in act_plan:
             print(action.name, action.parameters)
@@ -83,6 +84,9 @@ class ExecutionEngine():
         # move ('a', 'indigo_countertop', 'indigo_drawer_top')
         # placein ('a', 'potted_meat_can1', 'indigo_drawer_top')
         # close ('a', 'indigo_drawer_top')
+
+        # Generate the motion plan
+        # Note: Because of how pybullet is used in this code, the complete motion plan is generated first, then pybullet is restarted before the plan is visualized in the simulation
         print("Step 2: Generating Motion Plan")
         plan_dict = dict()
 
@@ -106,6 +110,142 @@ class ExecutionEngine():
         print("Step 3: Executing Plan")
         self.execute_plan(plan_dict)
 
+    def get_activity_plan(self):
+        """
+        Uses an activity planner that implements enforced hill climb based on the fast-forward heuristic to plan the activities required to achieve the goal
+        """
+        grounded_actions = ap.ground_actions(self.parser)
+        selected_actions = ap.enforced_hill_climb(self.parser.state, self.parser, grounded_actions)
+
+        return selected_actions
+
+    def plan_action(self, action):
+        """
+        Uses a motion planner class that implements RRT to plan the base and arm movements of the robot needed to carry out the activity plan.
+
+        Each type of action is implemented in this function using the following pattern: Retrieve the desired end position (of the arm and/or base), then plan the required motion, update the execution engine's knowledge of the robot's position then return the required paths
+
+        Assumptions:
+        - The move action is only used in the activity plan to indicate that the robot base needs to move to a different location in the kitchen. As a result, the motion of the arm is not planned for in this action
+        - The open and close actions will only work on indigo_drawer_top because only that location is encoded in the maps created when the execution engine is initialized. If an open/close action is requested for anything else in the kitchen, a ValueError will be raised
+        - The grip action assumes that the robot base is already within reach of the object prior to the grip action being called. Thus, only the motion of the arm is being planned. If the beyond the reach of the arm, then this code wil fail to find a suitable path for the robot arm
+
+        Inputs:
+            action: the PDDL object representing the action for which a motion plan is required
+        
+        Returns a tuple containing:
+            first element: the object (e.g. drawer, potted meat can or sugar box) that the robot should be attached to
+            second element: a list of (x,y, theta) tuples representing the positions of the base over time from start to end position
+            third element: a list of 7-element tuples representing the joint angles of the 7 arm joints over time from start to end position
+        """
+
+        print("    - Planning for action: ", action.name, action.parameters[1:])
+
+
+        # If the action is move, then look up the (x,y) position of the destination requested in the move action and plan a path for the base to reach it
+        if action.name == 'move':
+
+            arm, start_pos_name, end_pos_name = action.parameters #Get movement parameters from the action definition
+            
+            # Make sure that the destination being requested is a valid location in the kitchen and get its location if it is valid
+            if end_pos_name in self.location_map.keys():
+                end_pos = self.location_map[end_pos_name]
+
+            else:
+                raise ValueError(end_pos_name + " not in location map!")
+            
+            base_path, arm_path = self.motion_planner.plan(end_pos, 'b') #Plan the motion of the base
+
+            self.update_robot_position(self.current_pos[0:7], base_path[-1]) #Update the execution engine's knowledge of the robot's current position
+            
+            return (None, base_path, None) 
+
+        
+        # If the action is open or close, look up the current position of the drawer first, then move toward the drawer handle, then either open or close the drawer
+        if (action.name == 'open') or (action.name == 'close'):
+            arm, target = action.parameters
+
+            # This code currently only recognizes the indigo drawer top and not any other object/location
+            if target == "indigo_drawer_top":
+                orig_target_pose = get_link_pose(self.world.kitchen, self.drawer_link) #Get the current pose of the drawer
+            else:
+                raise ValueError("Unrecognized target for opening: " + str(target))
+
+            # STEP 1: MOVE THE ROBOT ARM INTO POSITION TO GRASP THE DRAWER HANDLE
+            # Extract the (x,y,z) position and euler angles of the drawer
+            orig_target_pos, orig_target_quat = orig_target_pose
+            orig_target_x, orig_target_y, orig_target_z = orig_target_pos
+            orig_target_euler = euler_from_quat(orig_target_quat)
+
+            # Convert the position and euler angles of the drawer to those required of the tool to grasp the drawer handle properly
+            tool_target_pos = ((orig_target_x+0.1), orig_target_y, orig_target_z) #Move the tool over by 0.1m in the x direction so that the fingers are properly positioned around the handle
+            tool_target_euler = (-orig_target_euler[0], orig_target_euler[1], (0.5*math.pi)) #Rotate the tool appropriately w.r.t. the drawer handle to grasp it 
+            tool_target_quat = quat_from_euler(tool_target_euler) # Convert the euler angles back to a quaternion so that target joint angles can be calculated using inverse kinematics
+
+            tool_target_pose = (tool_target_pos, tool_target_quat) #Pack up the required tool (x,y,z) position and quaternion into a proper pose tuple 
+
+            target_joint_angles = self.get_target_joint_angles(tool_target_pose)
+
+            base_path1, arm_path1 = self.motion_planner.plan(target_joint_angles, 'a') #Plan the motion to the drawer handle to grasp it
+
+            self.update_robot_position(arm_path1[0], self.current_pos[7:]) #Update the execution engine's knowledge of the robot's current position
+
+
+            #STEP 2: MOVE THE ROBOT ARM TO OPEN OR CLOSE THE DRAWER
+            tool_start_x, tool_start_y, tool_start_z = tool_target_pos #Re-unpack the tool target position into x, y and z variables for easier processing
+
+            if action.name == 'open':
+                #If we're trying to open the drawer, then move the robot arm by self.drawer_mvmt_distance in the positive x direction to open the drawer
+                end_pos = ((tool_start_x + self.drawer_mvmt_dist), tool_start_y, tool_start_z)
+            else:
+                #Otherwise, we're trying to close the drawer so move the robot arm by self.drawer_mvmt_distance in the negative x direction to close the drawer
+                end_pos = ((tool_start_x - self.drawer_mvmt_dist), tool_start_y, tool_start_z)
+
+            target_end_pose = (end_pos, tool_target_quat) #Pack up this new destination into a proper pose tuple
+
+            target_end_joint_angles = self.get_target_joint_angles(target_end_pose)
+
+            base_path2, arm_path2 = self.motion_planner.plan(target_end_joint_angles, 'a') #Plan the motion to actually open the drawer
+
+            self.update_robot_position(arm_path2[0], self.current_pos[7:]) #Update the execution engine's knowledge of the robot's current position
+
+            return (target, None, (arm_path1, arm_path2)) #Return both arm paths as a tuple 
+
+
+        # If the action is to grip the object, then locate the required pose of the tool to grip the object and then move the robot arm into position
+        if action.name == 'grip':
+            arm, target, location = action.parameters
+
+            target_pose = self.object_map[target]
+            # location_pos = self.location_map[location]
+
+            target_joint_angles = self.get_target_joint_angles(target_pose)
+
+            # If the arm is already in the right position, then there's no planning required so just return the object to be grasped
+            if self.current_pos[:7] == target_joint_angles:
+                return (target, None, None)
+            
+            # Otherwise, plan to move the arm only (base is assumed to be located within reach of the object already)
+            else:
+                base_path, arm_path = self.motion_planner.plan(target_joint_angles, 'a') #Plan the motion to get the tool in position to grip the object
+                self.update_robot_position(arm_path[0], self.current_pos[7:]) #Update the execution engine's knowledge of the robot's current position
+                
+                return(target, None, arm_path)
+
+        if (action.name == 'placein') or (action.name == 'placeon'):
+            arm, target, location = action.parameters
+
+            link = link_from_name(self.world.kitchen, location)
+            target_pose = get_link_pose(self.world.kitchen, link)
+            target_pose = ((target_pose[0][0], target_pose[0][1], (target_pose[0][2]+0.1)), target_pose[1] )
+            print("Target pose for ", target, ':', target_pose)
+            target_joint_angles = self.get_target_joint_angles(target_pose)
+
+            base_path, arm_path = self.motion_planner.plan(target_joint_angles, 'a')
+            self.update_robot_position(arm_path[0], self.current_pos[7:])
+                
+            return(target, None, arm_path)
+    
     def execute_plan(self, plan_dict):
         for action, (target, base_path, arm_path) in plan_dict.items():
             print("Executing ", action)
@@ -160,104 +300,6 @@ class ExecutionEngine():
         else:
             return target_joint_angles
 
-
-    def plan_action(self, action):
-        print("    - Planning for action: ", action.name, action.parameters[1:])
-
-        if action.name == 'move':
-            arm, start_pos_name, end_pos_name = action.parameters
-            
-            if end_pos_name in self.location_map.keys():
-                end_pos = self.location_map[end_pos_name]
-
-            # elif end_pos_name in self.object_map.keys():
-            #     end_pos = self.object_map[end_pos_name, 'a']
-            else:
-                raise ValueError(end_pos_name + " not in location map!")
-            
-            base_path, arm_path = self.motion_planner.plan(end_pos, 'b')
-
-            self.update_robot_position(self.current_pos[0:7], base_path[-1])
-
-            # set_joint_positions(self.world.robot, self.world.base_joints, (base_path[0]+(-math.pi/2)))
-            
-            return (None, base_path, None)
-
-        if (action.name == 'open') or (action.name == 'close'):
-            arm, target = action.parameters
-
-
-            if target == "indigo_drawer_top":
-                orig_target_pose = get_link_pose(self.world.kitchen, self.drawer_link)
-            else:
-                raise ValueError("Unrecognized target for opening: " + str(target))
-
-            orig_target_pos, orig_target_quat = orig_target_pose
-            orig_target_x, orig_target_y, orig_target_z = orig_target_pos
-            
-            tool_target_pos = ((orig_target_x+0.1), orig_target_y, orig_target_z)
-            
-            orig_target_euler = euler_from_quat(orig_target_quat)
-            tool_target_euler = (-orig_target_euler[0], orig_target_euler[1], (0.5*math.pi))
-            tool_target_quat = quat_from_euler(tool_target_euler)
-
-            tool_target_pose = (tool_target_pos, tool_target_quat)
-
-            target_joint_angles = self.get_target_joint_angles(tool_target_pose)
-
-            base_path1, arm_path1 = self.motion_planner.plan(target_joint_angles, 'a')
-
-            self.update_robot_position(arm_path1[0], self.current_pos[7:])
-
-            tool_start_x, tool_start_y, tool_start_z = tool_target_pos
-            
-            if action.name == 'open':
-                end_pos = ((tool_start_x + self.drawer_mvmt_dist), tool_start_y, tool_start_z)
-            else:
-                end_pos = ((tool_start_x - self.drawer_mvmt_dist), tool_start_y, tool_start_z)
-
-            target_end_pose = (end_pos, tool_target_quat)
-
-            target_end_joint_angles = self.get_target_joint_angles(target_end_pose)
-
-            base_path2, arm_path2 = self.motion_planner.plan(target_end_joint_angles, 'a')
-
-            self.update_robot_position(arm_path2[0], self.current_pos[7:])
-
-            return (target, None, (arm_path1, arm_path2))
-
-        if action.name == 'grip':
-            arm, target, location = action.parameters
-
-            target_pose = self.object_map[target]
-            location_pos = self.location_map[location]
-            print("Current robot base position: ", get_joint_positions(self.world.robot, self.world.base_joints))
-
-            target_joint_angles = self.get_target_joint_angles(target_pose)
-
-            if self.current_pos[:7] == target_joint_angles:
-                return (target, None, None)
-                
-            else:
-                base_path, arm_path = self.motion_planner.plan(target_joint_angles, 'a')
-                self.update_robot_position(arm_path[0], self.current_pos[7:])
-                
-                return(target, None, arm_path)
-
-        if (action.name == 'placein') or (action.name == 'placeon'):
-            arm, target, location = action.parameters
-
-            link = link_from_name(self.world.kitchen, location)
-            target_pose = get_link_pose(self.world.kitchen, link)
-            target_pose = ((target_pose[0][0], target_pose[0][1], (target_pose[0][2]+0.1)), target_pose[1] )
-            print("Target pose for ", target, ':', target_pose)
-            target_joint_angles = self.get_target_joint_angles(target_pose)
-
-            base_path, arm_path = self.motion_planner.plan(target_joint_angles, 'a')
-            self.update_robot_position(arm_path[0], self.current_pos[7:])
-                
-            return(target, None, arm_path)
-
     def update_objects(self, delta_x=None):
         if self.active_attachment:
             self.active_attachment.assign()
@@ -295,13 +337,6 @@ class ExecutionEngine():
                 self.update_objects(delta_x)
 
                 time.sleep(0.5)
-
-    
-    def get_activity_plan(self):
-        grounded_actions = ap.ground_actions(self.parser)
-        selected_actions = ap.enforced_hill_climb(self.parser.state, self.parser, grounded_actions)
-
-        return selected_actions
 
     def init_parser(self):
         parser = PDDL_Parser()
