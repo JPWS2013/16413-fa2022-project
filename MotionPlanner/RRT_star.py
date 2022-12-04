@@ -174,12 +174,7 @@ class MotionPlanner:
 
 
     def obst_free(self, x_nearest, x_new, body_to_plan):
-        # print('self.robot', self.robot)
-        # collisions = body_collision(self.robot, self.kitchen, max_distance=0.01)
-        # if not collisions:
-        #     collisions = body_collision(self.robot, kitchen_items['potted_meat_can1'], max_distance=0.01)
-        # if not collisions:
-        #     collisions = body_collision(self.robot, kitchen_items['sugar_box0'], max_distance=0.01)
+
         interpolated_path = list()
 
         if body_to_plan == 'a':
@@ -229,13 +224,6 @@ class MotionPlanner:
         while current_pos.parent != None:  
             path = current_pos.interpolated_path + path
             current_pos = current_pos.parent
-
-        # if (path[0][2] <= 0) or (path[0][2] >= -math.pi):
-        #     final_rotation_path = [ (point + (euler_from_quat(next_quat)[2],)) for point, next_quat in get_quaternion_waypoints(path[0][:2], path[0][2], quat_from_euler(0,0,-math.pi/2), step_size = math.pi/32) ]
-        # else:
-        #     final_rotation_path = [ (point + (euler_from_quat(next_quat)[2],)) for point, next_quat in get_quaternion_waypoints(path[0][:2], path[0][2], quat_from_euler(0,0,math.pi/2), step_size = math.pi/32) ]
-        
-        # path += final_rotation_path
         
         return path
 
