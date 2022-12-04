@@ -197,9 +197,11 @@ class ExecutionEngine():
             if action.name == 'open':
                 #If we're trying to open the drawer, then move the robot arm by self.drawer_mvmt_distance in the positive x direction to open the drawer
                 end_pos = ((tool_start_x + self.drawer_mvmt_dist), tool_start_y, tool_start_z)
+                set_joint_position(self.world.kitchen, self.drawer_joint, self.drawer_mvmt_dist) #Peform an instant open on the drawer since the gui isn't open while planning
             else:
                 #Otherwise, we're trying to close the drawer so move the robot arm by self.drawer_mvmt_distance in the negative x direction to close the drawer
                 end_pos = ((tool_start_x - self.drawer_mvmt_dist), tool_start_y, tool_start_z)
+                set_joint_position(self.world.kitchen, self.drawer_joint, 0) #Perform an instant close on the drawer since the gui isn't open while planning
 
             target_end_pose = (end_pos, tool_target_quat) #Pack up this new destination into a proper pose tuple
 

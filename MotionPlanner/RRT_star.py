@@ -280,19 +280,20 @@ class MotionPlanner:
 
         return limits_dict
     
-    def solve(self, start_pos_input, end_pos_input, body_to_plan):
+    def solve(self, start_pos_input, end_pos, body_to_plan):
 
         print("Starting position: ", start_pos_input)
-        print("Goal position: ", end_pos_input)
+        print("Goal position: ", end_pos)
 
         if body_to_plan == 'b':
+            # If planning the base, the base start pos is fed in as (x, y, theta) so pull out (x,y) separate from theta
             start_pos = start_pos_input[:2]
             start_heading = start_pos_input[2]
-            end_pos = end_pos_input[:2]
         else:
+            # Otherwise if planning for the arm, then the start_pos_input can be used for planning without modification
             start_pos = start_pos_input
-            end_pos = end_pos_input
 
+        # Get the joint limits to set up the functions to sample from the goal region
         goal_joint_limits = self.create_goal_limits(end_pos, body_to_plan)
 
         if body_to_plan == 'a':
@@ -300,18 +301,17 @@ class MotionPlanner:
         elif body_to_plan == 'b':
             self.random_goal_sample = self.get_sample_fn(self.robot, self.base_joints, custom_limits=goal_joint_limits)
 
+        # Initialize the variables to hold the path, vertices in the tree and the tree itself
         path = None
-
         V = [start_pos] # Create a list of node positions
 
         if body_to_plan == 'b':
-            G = [TreeNode(start_pos, start_heading)] # Create a list of TreeNode objects
+            # If planning for the base, tree nodes have a (x,y) start pos and a start heading associated with them
+            G = [TreeNode(start_pos, start_heading)]
         else:
+            # Otherwise if planning for the arm, then a tree node is only defined by the 7-element tuple representing the joint angles of the 7 arm joints
             G = [TreeNode(start_pos)]
         found = 0 # Variable to keep track of if we've made it to the goal
-        cart_pos_t = []
-
-        # print("List of vertices: ", V)
 
         wait_for_user("Hit enter to start planning")
 
@@ -336,13 +336,10 @@ class MotionPlanner:
             if (self.goal_biasing) and (i % self.goal_int == 0): # Every 20 iterations take the random sample from inside the goal area (goal biasing)
                 # print("Sampling from goal region")
                 x_rand = self.get_random_sample(body_to_plan, sample_goal=True)
-                # print("Sample from goal: ", x_rand)
-                # if body_to_plan == 'b':
-                #     rand_joints = rand_joints + self.get_random_base_sample(sample_goal=True)[0:2]
-            else: # Else take the random sample from somewhere in the operating area
+            else:
                 x_rand = self.get_random_sample(body_to_plan)
             # print('Random sample obtained: ', x_rand)
-            # wait_for_user()
+
             x_nearest = self.get_nearest_node(x_rand, G)
             # print('X_nearest: ', x_nearest.pos)
             x_new = self.steer(x_rand, x_nearest, body_to_plan) # Use the stter function to make x_new's position
@@ -371,7 +368,6 @@ class MotionPlanner:
                     V.append(x_new)
                     obj = TreeNode(x_new, theta=new_theta, parent=x_nearest, path = interpolated_path)
                     G.append(obj)
-                    cart_pos_t.append(get_link_pose(self.robot, link_from_name(self.robot, 'panda_hand'))[0])
 
 
                     if self.in_end_region(x_new, end_pos, body_to_plan):
@@ -384,21 +380,9 @@ class MotionPlanner:
             return None
 
     def plan(self, end_pos, body_to_plan):
-        # hand_pos_vec = np.array(get_link_pose(self.robot, link_from_name(self.robot, 'panda_hand'))[0])
-
-        # end_pos_vec = np.array(end_pos)
-
-        # if np.linalg.norm(end_pos_vec - hand_pos_vec) > self.base_goal_radius:
-        #     print("Arm can't reach the goal. Moving the base first")
-        #     path_base = self.solve(end_pos, 'b')
-            
-        #     return None, path_arm
         
         path_arm = None
         path_base = None
-
-        # print("start_pos in plan function: ", start_pos)
-        
 
         if body_to_plan == 'b':
             start_pos = get_joint_positions(self.robot, self.base_joints)
