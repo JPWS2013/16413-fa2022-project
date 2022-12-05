@@ -53,7 +53,7 @@ class ExecutionEngine():
         self.drawer_status = None #Determines whether the drawer is being opened or closed (if not None)
 
         # Initialize the motion planner object for motion planning
-        self.motion_planner = mp.MotionPlanner(self.world.robot, self.world.kitchen, self.world.base_joints, self.world.arm_joints, object_dict)
+        self.motion_planner = mp.MotionPlanner(self.world.robot, self.world.kitchen, self.world.base_joints, self.world.arm_joints, self.object_dict)
 
     def end(self):
         print("Destroying world object")
