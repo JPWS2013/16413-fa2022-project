@@ -7,7 +7,7 @@ SUBMODULE_PATH= os.path.abspath(os.path.join(os.getcwd(), 'padm-project-2022f'))
 sys.path.append(SUBMODULE_PATH)
 sys.path.extend(os.path.join(SUBMODULE_PATH, d) for d in ['pddlstream', 'ss-pybullet'])
 
-from pybullet_tools.utils import set_pose, Pose, Point, Euler, multiply, get_pose, get_point, create_box, set_all_static, WorldSaver, create_plane, COLOR_FROM_NAME, stable_z_on_aabb, pairwise_collision, elapsed_time, get_aabb_extent, get_aabb, create_cylinder, set_point, get_function_name, wait_for_user, dump_world, set_random_seed, set_numpy_seed, get_random_seed, get_numpy_seed, set_camera, set_camera_pose, link_from_name, get_movable_joints, get_joint_name, get_joint_positions, set_joint_positions, set_joint_position, create_attachment, get_euler, quat_from_euler, any_link_pair_collision, expand_links
+from pybullet_tools.utils import set_pose, Pose, Point, Euler, multiply, get_pose, get_point, create_box, set_all_static, WorldSaver, create_plane, COLOR_FROM_NAME, stable_z_on_aabb, pairwise_collision, elapsed_time, get_aabb_extent, get_aabb, create_cylinder, set_point, get_function_name, wait_for_user, dump_world, set_random_seed, set_numpy_seed, get_random_seed, get_numpy_seed, set_camera, set_camera_pose, link_from_name, get_movable_joints, get_joint_name, get_joint_positions, set_joint_positions, set_joint_position, create_attachment, get_euler, quat_from_euler, any_link_pair_collision, expand_links, get_link_name
 
 from pybullet_tools.utils import CIRCULAR_LIMITS, get_custom_limits, set_joint_positions, interval_generator, get_link_pose, interpolate_poses, get_collision_data, body_collision, Pose, Point, get_link_names, get_all_links, get_joints, get_joint_names, euler_from_quat, get_joint_limits, is_movable
 
@@ -53,7 +53,7 @@ def get_sample_fn(body, joints, custom_limits={}, **kwargs):
 
 np.set_printoptions(precision=3, suppress=True)
 world = World(use_gui=True)
-sugar_box = add_sugar_box(world, idx=0, counter=1, pose2d=(-0.2, 0.65, np.pi / 4))
+sugar_box = add_sugar_box(world, idx=0, counter=1, pose2d=(-0.15, 0.65, np.pi / 4))
 spam_box = add_spam_box(world, idx=1, counter=0, pose2d=(0.2, 1.1, np.pi / 4))
 world._update_initial()
 tool_link = link_from_name(world.robot, 'panda_hand')
@@ -64,6 +64,8 @@ joints = get_movable_joints(world.robot)
 print('Base Joints', [get_joint_name(world.robot, joint) for joint in world.base_joints])
 print('Arm Joints', [get_joint_name(world.robot, joint) for joint in world.arm_joints])
 sample_fn = get_sample_fn(world.robot, world.arm_joints)
+active_attachment = None
+kitchen_links = get_all_links(world.kitchen)
 wait_for_user()
 # print("Getting random sample")
 # conf = sample_fn()
@@ -144,6 +146,9 @@ while action_option != 2:
 
             set_joint_position(world.kitchen, drawer_joint, drawer_pos)
 
+        if active_attachment != None:
+            active_attachment.assign()
+
 
 
     elif action_option == 4:
@@ -214,7 +219,13 @@ while action_option != 2:
             if 'panda_hand' in link_name or 'panda_link' in link_name:
                 collision_links.append(link)
         body_collision_val_new = any_link_pair_collision(world.robot, collision_links, world.robot, collision_links,)
-        print('body_collision_val_new', body_collision_val_new)
+        sugar = world.get_body('sugar_box0')
+        meat = world.get_body('potted_meat_can1')
+
+        if body_collision(world.robot, sugar):
+            print("Collision with sugar box!")
+        if body_collision(world.robot, meat):
+            print("Collision with meat can!")
 
     elif action_option == 6:
         print("Getting random sample")
@@ -267,7 +278,7 @@ while action_option != 2:
 
         object_dict = {
             'potted_meat_can1': (0.7, 0.3, -math.pi/2),
-            'sugar_box0': (0.7, 0.65 , -math.pi/2)
+            'sugar_box0': (0.75, 0.65 , -math.pi/2)
         }
 
         user_obj = input("What object would you like to locate? ")
@@ -307,7 +318,7 @@ while action_option != 2:
         y_backoff = (x_shift_obj_orig*math.sin(euler_angles[2])) + (y_shift_obj_orig*math.cos(euler_angles[2]))
 
         tool_euler_angles = (euler_angles[0], (-0.5*math.pi), -euler_angles[2])
-        coord = ((coord[0]+x_backoff), (coord[1]+y_backoff), (coord[2]+(obj_height/2))) #Raise z by 0.05 to be at the right height to grip object
+        coord = ((coord[0]+x_backoff), (coord[1]+y_backoff), (coord[2]+(obj_height*3/4))) #Raise z by 0.05 to be at the right height to grip object
         pose = (coord, quat_from_euler(tool_euler_angles))
 
         print("Calculated tool pose: ", pose)
@@ -392,6 +403,13 @@ while action_option != 2:
                     drawer_pos = 0
 
                 set_joint_position(world.kitchen, joint_from_name(world.kitchen, 'indigo_drawer_top_joint'), drawer_pos)
+
+    elif action_option == 11:
+        if active_attachment == None:
+            active_attachment = create_attachment(world.robot, link_from_name(world.robot, 'panda_hand'), world.get_body('sugar_box0'))
+        else:
+            active_attachment = None
+
         
         
 
