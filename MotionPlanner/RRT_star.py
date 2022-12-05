@@ -25,7 +25,7 @@ class TreeNode(object):
         self.theta = theta
 
 class MotionPlanner:
-    def __init__(self, robot, kitchen, base_joints, arm_joints, kitchen_items, iterations=10000, base_d=0.75, arm_d = 0.5, goal_int=20, goal_biasing=True, run_rrtstar=False, arm_goal_radius = 0.05, base_goal_radius = 0.01):
+    def __init__(self, robot, kitchen, base_joints, arm_joints, kitchen_items, iterations=10000, base_d=0.75, arm_d = 0.5, goal_int=20, goal_biasing=True, run_rrtstar=False, arm_goal_radius = 0.04, base_goal_radius = 0.03, base_step_size=0.1, base_theta_step_size=math.pi/32, arm_step_size = 0.05):
         self.robot = robot
         self.kitchen = kitchen
         self.base_joints = base_joints
@@ -37,6 +37,9 @@ class MotionPlanner:
         self.goal_int = goal_int
         self.goal_biasing = goal_biasing
         self.run_rrtstar = run_rrtstar
+        self.base_step_size = base_step_size
+        self.base_theta_step_size = base_theta_step_size
+        self.arm_step_size = arm_step_size
 
         base_x_joint = joint_from_name(self.robot, 'x')
 
@@ -177,14 +180,21 @@ class MotionPlanner:
 
         interpolated_path = list()
 
+        dir_vec = np.array(x_new)- np.array(x_nearest.pos)
+
         if body_to_plan == 'a':
             set_joint_positions(self.robot, self.arm_joints, x_new)
-            return self.collision_free(), [x_new], None
+
+            for proportion in np.linspace(self.arm_step_size,1.0, num=int(1.0/self.arm_step_size)):
+                next_pos = x_nearest.pos + (proportion*dir_vec)
+                set_joint_positions(self.robot, self.arm_joints, next_pos)
+                interpolated_path.append(next_pos)
+                if not self.collision_free():
+                        return False, None, None
+            return True, interpolated_path, None
+        
         elif body_to_plan == 'b':
             # theta = get_joint_positions(self.robot, self.base_joints)[2]
-            current_theta = x_nearest.theta
-
-            dir_vec = np.array(x_new)- np.array(x_nearest.pos)
 
             delta_theta = math.atan(dir_vec[1]/dir_vec[0])
 
@@ -198,7 +208,7 @@ class MotionPlanner:
 
             #Rotate the base first if the current base heading doesn't match the next heading
             if new_theta != x_nearest.theta:
-                for point, next_quat in get_quaternion_waypoints(x_nearest.pos, quat_from_euler((0,0,x_nearest.theta)), new_quat, step_size = math.pi/32):
+                for point, next_quat in get_quaternion_waypoints(x_nearest.pos, quat_from_euler((0,0,x_nearest.theta)), new_quat, step_size = self.base_theta_step_size):
                     next_pos = point+(euler_from_quat(next_quat)[2],)
                     set_joint_positions(self.robot, self.base_joints, next_pos)
                     interpolated_path.append(next_pos)
@@ -206,7 +216,7 @@ class MotionPlanner:
                         return False, None, None
 
             #Then translate the base
-            for next_point, quat in get_position_waypoints(x_nearest.pos, dir_vec, new_quat, step_size=0.05):
+            for next_point, quat in get_position_waypoints(x_nearest.pos, dir_vec, new_quat, step_size=self.base_step_size):
                 next_point = tuple(next_point)
                 next_pos = (next_point + (new_theta,))
                 # print("Next point: ", next_point)
