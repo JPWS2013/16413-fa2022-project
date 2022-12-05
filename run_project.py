@@ -95,7 +95,7 @@ class ExecutionEngine():
             plan_dict[action.name+str(action.parameters)] = self.plan_action(action)
             wait_for_user()
             
-            if i >= 7:
+            if i >= 3:
                 break
 
         # Once motion planning is complete, destroy the old world object so that a new one can be created that uses the gui
@@ -442,7 +442,7 @@ class ExecutionEngine():
 
         
         elif "sugar_box" in name:
-            return ((-0.11514718625761429, 0.5510050506338834, -0.4540235005339055), (-0.2705980500730985, -0.6532814824381882, -0.27059805007309856, 0.6532814824381883))
+            return ((-0.11514718625761429, 0.5510050506338834, -0.4090197508010679), (-0.2705980500730985, -0.6532814824381882, -0.27059805007309856, 0.6532814824381883))
         
         else:
             raise ValueError(name)
