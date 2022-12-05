@@ -35,7 +35,7 @@ class ExecutionEngine():
         self.tool_link = link_from_name(self.world.robot, 'panda_hand')
         self.drawer_joint = joint_from_name(self.world.kitchen, 'indigo_drawer_top_joint')
         self.drawer_link = link_from_name(self.world.kitchen, 'indigo_drawer_handle_top')
-
+        self.drawer_links = [link_from_name(self.world.kitchen, 'indigo_drawer_handle_top'), link_from_name(self.world.kitchen, 'indigo_drawer_top')]
         # Map location and object names to locations in the world and also get the starting (current) position of the robot in the world
         # location_map: A dictionary mapping kitchen locations to (x,y) positions
         # object_map: A dictionary mapping object names to ((x,y,z), quat) poses that the robot tool needs to be in
@@ -95,8 +95,8 @@ class ExecutionEngine():
             plan_dict[action.name+str(action.parameters)] = self.plan_action(action)
             wait_for_user()
             
-            if i >= 3:
-                break
+            # if i >= 7:
+            #     break
 
         # Once motion planning is complete, destroy the old world object so that a new one can be created that uses the gui
         self.end()
@@ -154,8 +154,15 @@ class ExecutionEngine():
             else:
                 raise ValueError(end_pos_name + " not in location map!")
             
-            base_path, arm_path = self.motion_planner.plan(end_pos, 'b') #Plan the motion of the base
-
+            if self.active_attachment != None:
+                attached_obj = self.active_attachment.child
+                base_path, arm_path = self.motion_planner.plan(end_pos, 'b', [attached_obj])
+            elif self.drawer_status == 'opened':
+                base_path, arm_path = self.motion_planner.plan(end_pos, 'b', [self.drawer_links])
+            else:
+                base_path, arm_path = self.motion_planner.plan(end_pos, 'b') #Plan the motion of the base
+                
+            
             self.update_robot_position(self.current_pos[0:7], base_path[-1]) #Update the execution engine's knowledge of the robot's current position
             
             return (None, base_path, None) 
@@ -188,7 +195,7 @@ class ExecutionEngine():
 
             base_path1, arm_path1 = self.motion_planner.plan(target_joint_angles, 'a') #Plan the motion to the drawer handle to grasp it
 
-            self.update_robot_position(arm_path1[0], self.current_pos[7:]) #Update the execution engine's knowledge of the robot's current position
+            self.update_robot_position(tuple(arm_path1[-1]), self.current_pos[7:]) #Update the execution engine's knowledge of the robot's current position
 
 
             #STEP 2: MOVE THE ROBOT ARM TO OPEN OR CLOSE THE DRAWER
@@ -198,6 +205,7 @@ class ExecutionEngine():
                 #If we're trying to open the drawer, then move the robot arm by self.drawer_mvmt_distance in the positive x direction to open the drawer
                 end_pos = ((tool_start_x + self.drawer_mvmt_dist), tool_start_y, tool_start_z)
                 set_joint_position(self.world.kitchen, self.drawer_joint, self.drawer_mvmt_dist) #Peform an instant open on the drawer since the gui isn't open while planning
+                self.drawer_status = 'opened'
             else:
                 #Otherwise, we're trying to close the drawer so move the robot arm by self.drawer_mvmt_distance in the negative x direction to close the drawer
                 end_pos = ((tool_start_x - self.drawer_mvmt_dist), tool_start_y, tool_start_z)
@@ -207,9 +215,10 @@ class ExecutionEngine():
 
             target_end_joint_angles = self.get_target_joint_angles(target_end_pose)
 
-            base_path2, arm_path2 = self.motion_planner.plan(target_end_joint_angles, 'a') #Plan the motion to actually open the drawer
+            base_path2, arm_path2 = self.motion_planner.plan(target_end_joint_angles, 'a', self.drawer_links) #Plan the motion to actually open the drawer
 
-            self.update_robot_position(arm_path2[0], self.current_pos[7:]) #Update the execution engine's knowledge of the robot's current position
+            self.update_robot_position(tuple(arm_path2[-1]), self.current_pos[7:]) #Update the execution engine's knowledge of the robot's current position
+            
 
             return (target, None, (arm_path1, arm_path2)) #Return both arm paths as a tuple 
 
@@ -230,7 +239,7 @@ class ExecutionEngine():
             # Otherwise, plan to move the arm only (base is assumed to be located within reach of the object already)
             else:
                 base_path, arm_path = self.motion_planner.plan(target_joint_angles, 'a') #Plan the motion to get the tool in position to grip the object
-                self.update_robot_position(arm_path[0], self.current_pos[7:]) #Update the execution engine's knowledge of the robot's current position
+                self.update_robot_position(tuple(arm_path[-1]), self.current_pos[7:]) #Update the execution engine's knowledge of the robot's current position
                 
                 return(target, None, arm_path)
 
@@ -239,12 +248,12 @@ class ExecutionEngine():
 
             link = link_from_name(self.world.kitchen, location)
             target_pose = get_link_pose(self.world.kitchen, link)
-            target_pose = ((target_pose[0][0], target_pose[0][1], (target_pose[0][2]+0.1)), target_pose[1] )
+            target_pose = ((target_pose[0][0]+0.3, target_pose[0][1], (target_pose[0][2]+0.1)), quat_from_euler((0, -math.pi/2, 0)) )
             print("Target pose for ", target, ':', target_pose)
             target_joint_angles = self.get_target_joint_angles(target_pose)
 
             base_path, arm_path = self.motion_planner.plan(target_joint_angles, 'a')
-            self.update_robot_position(arm_path[0], self.current_pos[7:])
+            self.update_robot_position(tuple(arm_path[-1]), self.current_pos[7:])
                 
             return(target, None, arm_path)
     
@@ -287,6 +296,7 @@ class ExecutionEngine():
                 raise ValueError("Action does not match pre-mapped actions in execute_plan function")
 
     def update_robot_position(self, arm_angles, base_pos):
+        # print('Arm angles: ', arm_angles, ' and base pos: ', base_pos)
 
         self.current_pos = arm_angles + base_pos
 
@@ -338,7 +348,7 @@ class ExecutionEngine():
                 
                 self.update_objects(delta_x)
 
-                time.sleep(0.5)
+                time.sleep(0.05)
 
     def init_parser(self):
         parser = PDDL_Parser()
@@ -355,7 +365,7 @@ class ExecutionEngine():
         
         np.set_printoptions(precision=3, suppress=True)
         world = World(use_gui=use_gui)
-        sugar_box = add_sugar_box(world, idx=0, counter=1, pose2d=(-0.2, 0.65, np.pi / 4))
+        sugar_box = add_sugar_box(world, idx=0, counter=1, pose2d=(-0.15, 0.65, np.pi / 4))
         spam_box = add_spam_box(world, idx=1, counter=0, pose2d=(0.2, 1.1, np.pi / 4))
         world._update_initial()
 
@@ -442,7 +452,7 @@ class ExecutionEngine():
 
         
         elif "sugar_box" in name:
-            return ((-0.11514718625761429, 0.5510050506338834, -0.4090197508010679), (-0.2705980500730985, -0.6532814824381882, -0.27059805007309856, 0.6532814824381883))
+            return ((-0.06514718625761427, 0.5510050506338834, -0.4090197508010679), (-0.2705980500730985, -0.6532814824381882, -0.27059805007309856, 0.6532814824381883))
         
         else:
             raise ValueError(name)

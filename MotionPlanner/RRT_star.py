@@ -8,8 +8,8 @@ SUBMODULE_PATH= os.path.abspath(os.path.join(os.getcwd(), 'padm-project-2022f'))
 sys.path.append(SUBMODULE_PATH)
 sys.path.extend(os.path.join(SUBMODULE_PATH, d) for d in ['pddlstream', 'ss-pybullet'])
 
-from pybullet_tools.utils import set_pose, Pose, Point, Euler, multiply, get_pose, get_point, create_box, set_all_static, WorldSaver, create_plane, COLOR_FROM_NAME, stable_z_on_aabb, pairwise_collision, elapsed_time, get_aabb_extent, get_aabb, create_cylinder, set_point, get_function_name, wait_for_user, dump_world, set_random_seed, set_numpy_seed, get_random_seed, get_numpy_seed, set_camera, set_camera_pose, link_from_name, get_movable_joints, get_joint_name, quat_from_euler, get_quaternion_waypoints, euler_from_quat, get_position_waypoints, joint_from_name, get_joint_limits
-from pybullet_tools.utils import CIRCULAR_LIMITS, get_custom_limits, set_joint_positions, interval_generator, get_link_pose, interpolate_poses, get_joint_positions, body_collision
+from pybullet_tools.utils import set_pose, Pose, Point, Euler, multiply, get_pose, get_point, create_box, set_all_static, WorldSaver, create_plane, COLOR_FROM_NAME, stable_z_on_aabb, pairwise_collision, elapsed_time, get_aabb_extent, get_aabb, create_cylinder, set_point, get_function_name, wait_for_user, dump_world, set_random_seed, set_numpy_seed, get_random_seed, get_numpy_seed, set_camera, set_camera_pose, link_from_name, get_movable_joints, get_joint_name, quat_from_euler, get_quaternion_waypoints, euler_from_quat, get_position_waypoints, joint_from_name, get_joint_limits, link_pairs_collision
+from pybullet_tools.utils import CIRCULAR_LIMITS, get_custom_limits, set_joint_positions, interval_generator, get_link_pose, interpolate_poses, get_joint_positions, body_collision, get_all_links
 from src.utils import translate_linearly
 
 # from pybullet_tools.ikfast.franka_panda.ik import PANDA_INFO, FRANKA_URDF
@@ -25,9 +25,10 @@ class TreeNode(object):
         self.theta = theta
 
 class MotionPlanner:
-    def __init__(self, robot, kitchen, base_joints, arm_joints, kitchen_items, iterations=10000, base_d=0.75, arm_d = 0.5, goal_int=20, goal_biasing=True, run_rrtstar=False, arm_goal_radius = 0.04, base_goal_radius = 0.03, base_step_size=0.1, base_theta_step_size=math.pi/32, arm_step_size = 0.05):
+    def __init__(self, robot, kitchen, base_joints, arm_joints, kitchen_items, iterations=10000, base_d=0.5, arm_d = 0.3, goal_int=20, goal_biasing=True, run_rrtstar=False, arm_goal_radius = 0.1, base_goal_radius = 0.06, base_step_size=0.05, base_theta_step_size=math.pi/32, arm_step_size = 0.1):
         self.robot = robot
         self.kitchen = kitchen
+        self.kitchen_links = set(get_all_links(self.kitchen))
         self.base_joints = base_joints
         self.arm_joints = arm_joints
         self.kitchen_items = kitchen_items
@@ -161,22 +162,31 @@ class MotionPlanner:
 
         return new_theta
     
-    def collision_free(self):
+    def collision_free(self, bodies_to_ignore):
+        # print("Start collision check")
 
         # Check if robot is in collision with items in the kitchen
         for item_name, item_obj in self.kitchen_items.items():
             if body_collision(self.robot, item_obj):
-                return False
+                if item_obj not in bodies_to_ignore:
+                    return False
         # Check if robot is in collision with itself
         # autorobotic_collision = body_collision(self.robot, self.robot)
-        # print('self.robot', self.robot)
+
+        # links_to_check = self.kitchen_links - set(bodies_to_ignore)
+
+        # if link_pairs_collision(self.kitchen, links_to_check, self.robot):
+        #     return False
+
         if body_collision(self.robot, self.kitchen):
             return False
+        
+        # print("end collision check")
 
         return True
 
 
-    def obst_free(self, x_nearest, x_new, body_to_plan):
+    def obst_free(self, x_nearest, x_new, body_to_plan, bodies_to_ignore):
 
         interpolated_path = list()
 
@@ -189,7 +199,7 @@ class MotionPlanner:
                 next_pos = x_nearest.pos + (proportion*dir_vec)
                 set_joint_positions(self.robot, self.arm_joints, next_pos)
                 interpolated_path.append(next_pos)
-                if not self.collision_free():
+                if not self.collision_free(bodies_to_ignore):
                         return False, None, None
             return True, interpolated_path, None
         
@@ -212,7 +222,7 @@ class MotionPlanner:
                     next_pos = point+(euler_from_quat(next_quat)[2],)
                     set_joint_positions(self.robot, self.base_joints, next_pos)
                     interpolated_path.append(next_pos)
-                    if not self.collision_free():
+                    if not self.collision_free(bodies_to_ignore):
                         return False, None, None
 
             #Then translate the base
@@ -223,7 +233,7 @@ class MotionPlanner:
                 set_joint_positions(self.robot, self.base_joints, next_pos)
                 interpolated_path.append(next_pos)
 
-                if not self.collision_free():
+                if not self.collision_free(bodies_to_ignore):
                     return False, None, None
 
             return True, interpolated_path, new_theta
@@ -278,7 +288,7 @@ class MotionPlanner:
 
         return limits_dict
     
-    def solve(self, start_pos_input, end_pos, body_to_plan):
+    def solve(self, start_pos_input, end_pos, body_to_plan, bodies_to_ignore):
 
         print("Starting position: ", start_pos_input)
         print("Goal position: ", end_pos)
@@ -359,8 +369,11 @@ class MotionPlanner:
             
             #This runs rrt instead of rrt*
             else:
-                is_obstacle_free, interpolated_path, new_theta = self.obst_free(x_nearest, x_new, body_to_plan)
-                # print('Is new arm position obstacle free? ', is_obstacle_free)
+                is_obstacle_free, interpolated_path, new_theta = self.obst_free(x_nearest, x_new, body_to_plan, bodies_to_ignore)
+                
+                if not is_obstacle_free:
+                    print(x_new, 'is not obstacle free!')
+
                 if is_obstacle_free and (x_new not in V):
                     # print("Obstacle free point: ", x_new)
                     V.append(x_new)
@@ -377,20 +390,20 @@ class MotionPlanner:
         else:
             return None
 
-    def plan(self, end_pos, body_to_plan):
+    def plan(self, end_pos, body_to_plan, bodies_to_ignore = []):
         
         path_arm = None
         path_base = None
 
         if body_to_plan == 'b':
             start_pos = get_joint_positions(self.robot, self.base_joints)
-            path_base = self.solve(start_pos, end_pos, body_to_plan)
+            path_base = self.solve(start_pos, end_pos, body_to_plan, bodies_to_ignore)
             if path_base == None:
                 raise ValueError("No feasible path for base found!")
         
         elif body_to_plan == 'a':  
             start_pos = get_joint_positions(self.robot, self.arm_joints)  
-            path_arm = self.solve(start_pos, end_pos[0:7], body_to_plan)
+            path_arm = self.solve(start_pos, end_pos[0:7], body_to_plan, bodies_to_ignore)
             if path_arm == None: 
                 raise ValueError("No feasible path for arm found!")
 
