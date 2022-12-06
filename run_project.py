@@ -220,8 +220,10 @@ class ExecutionEngine():
 
             self.update_robot_position(tuple(arm_path2[-1]), self.current_pos[7:]) #Update the execution engine's knowledge of the robot's current position
             
+            base_path1, arm_path3 = self.motion_planner.plan(self.arm_park, 'a')
+            self.update_robot_position(tuple(arm_path2[-1]), self.current_pos[7:]) #Update the execution engine's knowledge of the robot's current position
 
-            return (target, None, (arm_path1, arm_path2)) #Return both arm paths as a tuple 
+            return (target, None, (arm_path1, arm_path2, arm_path3)) #Return both arm paths as a tuple 
 
 
         # If the action is to grip the object, then locate the required pose of the tool to grip the object and then move the robot arm into position
@@ -235,16 +237,19 @@ class ExecutionEngine():
 
             # If the arm is already in the right position, then there's no planning required so just return the object to be grasped
             if self.current_pos[:7] == target_joint_angles:
-                return (target, None, None)
+                armpath1 = []
             
             # Otherwise, plan to move the arm only (base is assumed to be located within reach of the object already)
             else:
-                base_path, arm_path = self.motion_planner.plan(target_joint_angles, 'a') #Plan the motion to get the tool in position to grip the object
-                self.update_robot_position(tuple(arm_path[-1]), self.current_pos[7:]) #Update the execution engine's knowledge of the robot's current position
+                base_path1, arm_path1 = self.motion_planner.plan(target_joint_angles, 'a') #Plan the motion to get the tool in position to grip the object
+                self.update_robot_position(tuple(arm_path1[-1]), self.current_pos[7:]) #Update the execution engine's knowledge of the robot's current position
                 
                 self.active_attachment = create_attachment(self.world.robot, link_from_name(self.world.robot, 'panda_hand'), self.world.get_body(target))
 
-                return(target, None, arm_path)
+            base_path1, arm_path2 = self.motion_planner.plan(self.arm_park, 'a')
+            self.update_robot_position(tuple(arm_path2[-1]), self.current_pos[7:]) #Update the execution engine's knowledge of the robot's current position
+            
+            return(target, None, (arm_path1, arm_path2))
 
         if (action.name == 'placein') or (action.name == 'placeon'):
             arm, target, location = action.parameters
@@ -255,12 +260,15 @@ class ExecutionEngine():
             print("Target pose for ", target, ':', target_pose)
             target_joint_angles = self.get_target_joint_angles(target_pose)
 
-            base_path, arm_path = self.motion_planner.plan(target_joint_angles, 'a')
+            base_path, arm_path1 = self.motion_planner.plan(target_joint_angles, 'a')
             self.update_robot_position(tuple(arm_path[-1]), self.current_pos[7:])
 
             self.active_attachment = None
+
+            base_path1, arm_path2 = self.motion_planner.plan(self.arm_park, 'a')
+            self.update_robot_position(tuple(arm_path2[-1]), self.current_pos[7:]) #Update the execution engine's knowledge of the robot's current position
                 
-            return(target, None, arm_path)
+            return(target, None, (arm_path1, arm_path2))
     
     def execute_plan(self, plan_dict):
         for action, (target, base_path, arm_path) in plan_dict.items():
@@ -271,7 +279,7 @@ class ExecutionEngine():
                 self.move_robot(base_path, arm_path)
             
             elif ('open' in action.lower()) or ('close' in action.lower()):
-                arm_path1, arm_path2 = arm_path
+                arm_path1, arm_path2, arm_path3 = arm_path
                 self.move_robot(base_path, arm_path1)
                 if 'open' in action.lower():
                     self.drawer_status = 'opening'
@@ -280,22 +288,29 @@ class ExecutionEngine():
 
                 self.move_robot(base_path, arm_path2)
                 self.drawer_status = None
+                self.move_robot(base_path, arm_path3)
 
             elif 'grip' in action.lower():
-                if not ((base_path==None) and (arm_path==None)):
-                    self.move_robot(base_path, arm_path)
-
+                arm_path1, arm_path2 = arm_path
+                if not ((base_path==None) and (arm_path1==None)):
+                    self.move_robot(base_path, arm_path1)
                 
                 print("Creating attachment to ", target)
 
                 self.active_attachment = create_attachment(self.world.robot, link_from_name(self.world.robot, 'panda_hand'), self.world.get_body(target))
 
+                if not (arm_path2==None):
+                    self.move_robot(base_path, arm_path2)
                 # self.active_attachment = self.attachments[target]
 
             elif ('placein' in action) or ('placeon' in action):
-                if not ((base_path==None) and (arm_path==None)):
+                arm_path1, arm_path2 = arm_path
+                if not ((base_path==None) and (arm_path1==None)):
                     self.move_robot(base_path, arm_path)
                 self.active_attachment = None
+
+                if not (arm_path2==None):
+                    self.move_robot(base_path, arm_path2)
 
             else:
                 raise ValueError("Action does not match pre-mapped actions in execute_plan function")
