@@ -25,7 +25,7 @@ class TreeNode(object):
         self.theta = theta
 
 class MotionPlanner:
-    def __init__(self, robot, kitchen, base_joints, arm_joints, kitchen_items, iterations=10000, base_d=0.5, arm_d = 0.6, goal_int=20, goal_biasing=True, run_rrtstar=False, arm_goal_radius = 0.1, base_goal_radius = 0.06, base_step_size=0.05, base_theta_step_size=math.pi/32, arm_step_size = 0.1):
+    def __init__(self, robot, kitchen, base_joints, arm_joints, kitchen_items, iterations=10000, base_d=0.5, arm_d = 0.8, goal_int=20, goal_biasing=True, run_rrtstar=False, arm_goal_radius = 0.1, base_goal_radius = 0.06, base_step_size=0.05, base_theta_step_size=math.pi/32, arm_step_size = 0.1):
         self.robot = robot
         self.kitchen = kitchen
         self.kitchen_links = set(get_all_links(self.kitchen))

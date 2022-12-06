@@ -29,7 +29,7 @@ class ExecutionEngine():
         self.parser = self.init_parser()
 
         # Create the simulated world
-        self.world = self.create_world(use_gui=True)
+        self.world = self.create_world(use_gui=False)
 
         # Get the various links in the world needed for motion planning later
         self.tool_link = link_from_name(self.world.robot, 'panda_hand')
@@ -95,7 +95,7 @@ class ExecutionEngine():
             plan_dict[action.name+str(action.parameters)] = self.plan_action(action)
             wait_for_user()
             
-            if i >= 3:
+            if i >= 4:
                 break
 
         # Once motion planning is complete, destroy the old world object so that a new one can be created that uses the gui
@@ -261,7 +261,7 @@ class ExecutionEngine():
             target_joint_angles = self.get_target_joint_angles(target_pose)
 
             base_path, arm_path1 = self.motion_planner.plan(target_joint_angles, 'a')
-            self.update_robot_position(tuple(arm_path[-1]), self.current_pos[7:])
+            self.update_robot_position(tuple(arm_path1[-1]), self.current_pos[7:])
 
             self.active_attachment = None
 
@@ -306,7 +306,7 @@ class ExecutionEngine():
             elif ('placein' in action) or ('placeon' in action):
                 arm_path1, arm_path2 = arm_path
                 if not ((base_path==None) and (arm_path1==None)):
-                    self.move_robot(base_path, arm_path)
+                    self.move_robot(base_path, arm_path1)
                 self.active_attachment = None
 
                 if not (arm_path2==None):
