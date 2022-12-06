@@ -95,8 +95,8 @@ class ExecutionEngine():
             plan_dict[action.name+str(action.parameters)] = self.plan_action(action)
             wait_for_user()
             
-            # if i >= 7:
-            #     break
+            if i >= 4:
+                break
 
         # Once motion planning is complete, destroy the old world object so that a new one can be created that uses the gui
         self.end()
@@ -158,7 +158,7 @@ class ExecutionEngine():
                 attached_obj = self.active_attachment.child
                 base_path, arm_path = self.motion_planner.plan(end_pos, 'b', [attached_obj])
             elif self.drawer_status == 'opened':
-                base_path, arm_path = self.motion_planner.plan(end_pos, 'b', [self.drawer_links])
+                base_path, arm_path = self.motion_planner.plan(end_pos, 'b', self.drawer_links)
             else:
                 base_path, arm_path = self.motion_planner.plan(end_pos, 'b') #Plan the motion of the base
                 
@@ -210,6 +210,7 @@ class ExecutionEngine():
                 #Otherwise, we're trying to close the drawer so move the robot arm by self.drawer_mvmt_distance in the negative x direction to close the drawer
                 end_pos = ((tool_start_x - self.drawer_mvmt_dist), tool_start_y, tool_start_z)
                 set_joint_position(self.world.kitchen, self.drawer_joint, 0) #Perform an instant close on the drawer since the gui isn't open while planning
+                self.drawer_status = None
 
             target_end_pose = (end_pos, tool_target_quat) #Pack up this new destination into a proper pose tuple
 
@@ -241,6 +242,8 @@ class ExecutionEngine():
                 base_path, arm_path = self.motion_planner.plan(target_joint_angles, 'a') #Plan the motion to get the tool in position to grip the object
                 self.update_robot_position(tuple(arm_path[-1]), self.current_pos[7:]) #Update the execution engine's knowledge of the robot's current position
                 
+                self.active_attachment = create_attachment(self.world.robot, link_from_name(self.world.robot, 'panda_hand'), self.world.get_body(target))
+
                 return(target, None, arm_path)
 
         if (action.name == 'placein') or (action.name == 'placeon'):
@@ -254,6 +257,8 @@ class ExecutionEngine():
 
             base_path, arm_path = self.motion_planner.plan(target_joint_angles, 'a')
             self.update_robot_position(tuple(arm_path[-1]), self.current_pos[7:])
+
+            self.active_attachment = None
                 
             return(target, None, arm_path)
     

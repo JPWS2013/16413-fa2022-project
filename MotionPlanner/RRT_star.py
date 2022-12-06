@@ -8,7 +8,7 @@ SUBMODULE_PATH= os.path.abspath(os.path.join(os.getcwd(), 'padm-project-2022f'))
 sys.path.append(SUBMODULE_PATH)
 sys.path.extend(os.path.join(SUBMODULE_PATH, d) for d in ['pddlstream', 'ss-pybullet'])
 
-from pybullet_tools.utils import set_pose, Pose, Point, Euler, multiply, get_pose, get_point, create_box, set_all_static, WorldSaver, create_plane, COLOR_FROM_NAME, stable_z_on_aabb, pairwise_collision, elapsed_time, get_aabb_extent, get_aabb, create_cylinder, set_point, get_function_name, wait_for_user, dump_world, set_random_seed, set_numpy_seed, get_random_seed, get_numpy_seed, set_camera, set_camera_pose, link_from_name, get_movable_joints, get_joint_name, quat_from_euler, get_quaternion_waypoints, euler_from_quat, get_position_waypoints, joint_from_name, get_joint_limits, link_pairs_collision
+from pybullet_tools.utils import set_pose, Pose, Point, Euler, multiply, get_pose, get_point, create_box, set_all_static, WorldSaver, create_plane, COLOR_FROM_NAME, stable_z_on_aabb, pairwise_collision, elapsed_time, get_aabb_extent, get_aabb, create_cylinder, set_point, get_function_name, wait_for_user, dump_world, set_random_seed, set_numpy_seed, get_random_seed, get_numpy_seed, set_camera, set_camera_pose, link_from_name, get_movable_joints, get_joint_name, quat_from_euler, get_quaternion_waypoints, euler_from_quat, get_position_waypoints, joint_from_name, get_joint_limits, link_pairs_collision, get_body_name
 from pybullet_tools.utils import CIRCULAR_LIMITS, get_custom_limits, set_joint_positions, interval_generator, get_link_pose, interpolate_poses, get_joint_positions, body_collision, get_all_links
 from src.utils import translate_linearly
 
@@ -163,11 +163,13 @@ class MotionPlanner:
         return new_theta
     
     def collision_free(self, bodies_to_ignore):
-        # print("Start collision check")
+        # names_to_ignore = [get_body_name(body) for body in bodies_to_ignore]
+        # print("Ignoring: ", names_to_ignore)
 
         # Check if robot is in collision with items in the kitchen
         for item_name, item_obj in self.kitchen_items.items():
             if body_collision(self.robot, item_obj):
+                # return False
                 if item_obj not in bodies_to_ignore:
                     return False
         # Check if robot is in collision with itself
@@ -177,8 +179,9 @@ class MotionPlanner:
 
         # if link_pairs_collision(self.kitchen, links_to_check, self.robot):
         #     return False
+        # print('Bodies to ignore: ', bodies_to_ignore)
 
-        if body_collision(self.robot, self.kitchen):
+        if body_collision(self.robot, self.kitchen):# and not all(link in self.kitchen_links for link in bodies_to_ignore):
             return False
         
         # print("end collision check")
@@ -371,8 +374,8 @@ class MotionPlanner:
             else:
                 is_obstacle_free, interpolated_path, new_theta = self.obst_free(x_nearest, x_new, body_to_plan, bodies_to_ignore)
                 
-                if not is_obstacle_free:
-                    print(x_new, 'is not obstacle free!')
+                # if not is_obstacle_free:
+                    # print('-->', x_new, 'is not obstacle free!')
 
                 if is_obstacle_free and (x_new not in V):
                     # print("Obstacle free point: ", x_new)
