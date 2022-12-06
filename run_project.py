@@ -95,12 +95,14 @@ class ExecutionEngine():
             plan_dict[action.name+str(action.parameters)] = self.plan_action(action)
             wait_for_user()
             
-            if i >= 4:
+            if i >= 8:
                 break
 
         # Once motion planning is complete, destroy the old world object so that a new one can be created that uses the gui
         self.end()
         self.world = self.create_world(use_gui=True)
+        self.active_attachment = None #Determines the object being grasped by the tool (if not None)
+        self.drawer_status = None #Determines whether the drawer is being opened or closed (if not None)
 
         # Reset the variables keeping track of the current pos to the starting point of the robot before starting to execute the plans
         self.current_pos = self.location_map['start_pos']
