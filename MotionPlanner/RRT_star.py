@@ -25,7 +25,7 @@ class TreeNode(object):
         self.theta = theta
 
 class MotionPlanner:
-    def __init__(self, robot, kitchen, base_joints, arm_joints, kitchen_items, iterations=10000, base_d=0.5, arm_d = 0.3, goal_int=20, goal_biasing=True, run_rrtstar=False, arm_goal_radius = 0.1, base_goal_radius = 0.06, base_step_size=0.05, base_theta_step_size=math.pi/32, arm_step_size = 0.1):
+    def __init__(self, robot, kitchen, base_joints, arm_joints, kitchen_items, iterations=10000, base_d=0.5, arm_d = 0.6, goal_int=20, goal_biasing=True, run_rrtstar=False, arm_goal_radius = 0.1, base_goal_radius = 0.06, base_step_size=0.05, base_theta_step_size=math.pi/32, arm_step_size = 0.1):
         self.robot = robot
         self.kitchen = kitchen
         self.kitchen_links = set(get_all_links(self.kitchen))
@@ -172,17 +172,27 @@ class MotionPlanner:
                 # return False
                 if item_obj not in bodies_to_ignore:
                     return False
+                else:
+                    print('Collision being ignored with', item_name)
+            if item_obj in bodies_to_ignore:
+                bodies_to_ignore.remove(item_obj)
         # Check if robot is in collision with itself
         # autorobotic_collision = body_collision(self.robot, self.robot)
 
-        # links_to_check = self.kitchen_links - set(bodies_to_ignore)
 
-        # if link_pairs_collision(self.kitchen, links_to_check, self.robot):
-        #     return False
         # print('Bodies to ignore: ', bodies_to_ignore)
 
         if body_collision(self.robot, self.kitchen):# and not all(link in self.kitchen_links for link in bodies_to_ignore):
-            return False
+            if bodies_to_ignore:
+                print('Collision, checking link pairs')
+                links_to_check = self.kitchen_links - set(bodies_to_ignore)
+                if link_pairs_collision(self.kitchen, links_to_check, self.robot):
+                    print('Collision, collision with unignored link')
+                    return False
+            else:
+                print('Collision, no bodies to ignore')
+                return False
+            
         
         # print("end collision check")
 
@@ -374,8 +384,8 @@ class MotionPlanner:
             else:
                 is_obstacle_free, interpolated_path, new_theta = self.obst_free(x_nearest, x_new, body_to_plan, bodies_to_ignore)
                 
-                # if not is_obstacle_free:
-                    # print('-->', x_new, 'is not obstacle free!')
+                if not is_obstacle_free:
+                    print('-->', x_new, 'is not obstacle free!')
 
                 if is_obstacle_free and (x_new not in V):
                     # print("Obstacle free point: ", x_new)

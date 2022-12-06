@@ -29,7 +29,7 @@ class ExecutionEngine():
         self.parser = self.init_parser()
 
         # Create the simulated world
-        self.world = self.create_world(use_gui=False)
+        self.world = self.create_world(use_gui=True)
 
         # Get the various links in the world needed for motion planning later
         self.tool_link = link_from_name(self.world.robot, 'panda_hand')
@@ -45,7 +45,7 @@ class ExecutionEngine():
 
         # Establish relevant movement constraints
         self.drawer_mvmt_dist = 0.4 #When opening the drawer, drawer only opens 0.4m
-
+        self.arm_park = [0.12, -0.5698, 0, -2.8106, -0.0003, 3.0363, 0.7411]
         # print("Object map: ", self.object_map)
 
         # Set up variables to determine attachments of the robot to objects and furniture
@@ -95,7 +95,7 @@ class ExecutionEngine():
             plan_dict[action.name+str(action.parameters)] = self.plan_action(action)
             wait_for_user()
             
-            if i >= 4:
+            if i >= 3:
                 break
 
         # Once motion planning is complete, destroy the old world object so that a new one can be created that uses the gui
