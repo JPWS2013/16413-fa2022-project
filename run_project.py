@@ -51,6 +51,7 @@ class ExecutionEngine():
         # Set up variables to determine attachments of the robot to objects and furniture
         self.active_attachment = None #Determines the object being grasped by the tool (if not None)
         self.drawer_status = None #Determines whether the drawer is being opened or closed (if not None)
+        self.surface_attachment = None
 
         # Initialize the motion planner object for motion planning
         self.motion_planner = mp.MotionPlanner(self.world.robot, self.world.kitchen, self.world.base_joints, self.world.arm_joints, self.object_dict)
@@ -102,6 +103,7 @@ class ExecutionEngine():
         self.end()
         self.world = self.create_world(use_gui=True)
         self.active_attachment = None #Determines the object being grasped by the tool (if not None)
+        self.surface_attachment = None
         self.drawer_status = None #Determines whether the drawer is being opened or closed (if not None)
 
         # Reset the variables keeping track of the current pos to the starting point of the robot before starting to execute the plans
@@ -315,6 +317,8 @@ class ExecutionEngine():
                 if not ((base_path==None) and (arm_path1==None)):
                     self.move_robot(base_path, arm_path1)
                 self.active_attachment = None
+                if 'placein' in action:
+                    self.surface_attachment = create_attachment(self.world, target, get_link_name(self.drawer_link))
 
                 if not (arm_path2==None):
                     self.move_robot(base_path, arm_path2)
@@ -341,6 +345,9 @@ class ExecutionEngine():
     def update_objects(self, delta_x=None):
         if self.active_attachment:
             self.active_attachment.assign()
+
+        if self.surface_attachment:
+            self.surface_attachment.assign()
 
         if self.drawer_status:
             curr_drawer_pos = get_joint_position(self.world.kitchen, self.drawer_joint)
