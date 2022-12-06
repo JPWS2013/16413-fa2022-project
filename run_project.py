@@ -95,8 +95,8 @@ class ExecutionEngine():
             plan_dict[action.name+str(action.parameters)] = self.plan_action(action)
             wait_for_user()
             
-            if i >= 8:
-                break
+            # if i >= 9:
+            #     break
 
         # Once motion planning is complete, destroy the old world object so that a new one can be created that uses the gui
         self.end()
@@ -131,6 +131,7 @@ class ExecutionEngine():
         - The move action is only used in the activity plan to indicate that the robot base needs to move to a different location in the kitchen. As a result, the motion of the arm is not planned for in this action
         - The open and close actions will only work on indigo_drawer_top because only that location is encoded in the maps created when the execution engine is initialized. If an open/close action is requested for anything else in the kitchen, a ValueError will be raised
         - The grip action assumes that the robot base is already within reach of the object prior to the grip action being called. Thus, only the motion of the arm is being planned. If the beyond the reach of the arm, then this code wil fail to find a suitable path for the robot arm
+        - Assumes that target poses are obstacle free. If the target poses will result in a collision, this code will not find a path (since the goal is in collision)
 
         Inputs:
             action: the PDDL object representing the action for which a motion plan is required
@@ -164,9 +165,9 @@ class ExecutionEngine():
             else:
                 base_path, arm_path = self.motion_planner.plan(end_pos, 'b') #Plan the motion of the base
                 
-            
-            self.update_robot_position(self.current_pos[0:7], base_path[-1]) #Update the execution engine's knowledge of the robot's current position
-            
+            if base_path != []:
+                self.update_robot_position(self.current_pos[0:7], base_path[-1]) #Update the execution engine's knowledge of the robot's current position
+                
             return (None, base_path, None) 
 
         
@@ -222,7 +223,12 @@ class ExecutionEngine():
 
             self.update_robot_position(tuple(arm_path2[-1]), self.current_pos[7:]) #Update the execution engine's knowledge of the robot's current position
             
-            base_path1, arm_path3 = self.motion_planner.plan(self.arm_park, 'a')
+            print("Parking the arm after opening/closing the drawer")
+            park_pose = (((target_end_pose[0][0]+0.1), target_end_pose[0][1], target_end_pose[0][2]), target_end_pose[1])
+            # print("Park pose after opening: ", park_pose)
+            target_park_joint_angles = self.get_target_joint_angles(park_pose)
+
+            base_path3, arm_path3 = self.motion_planner.plan(target_park_joint_angles, 'a', self.drawer_links)
             self.update_robot_position(tuple(arm_path2[-1]), self.current_pos[7:]) #Update the execution engine's knowledge of the robot's current position
 
             return (target, None, (arm_path1, arm_path2, arm_path3)) #Return both arm paths as a tuple 
@@ -250,7 +256,6 @@ class ExecutionEngine():
 
             base_path1, arm_path2 = self.motion_planner.plan(self.arm_park, 'a')
             self.update_robot_position(tuple(arm_path2[-1]), self.current_pos[7:]) #Update the execution engine's knowledge of the robot's current position
-            
             return(target, None, (arm_path1, arm_path2))
 
         if (action.name == 'placein') or (action.name == 'placeon'):
@@ -323,7 +328,6 @@ class ExecutionEngine():
         self.current_pos = arm_angles + base_pos
 
         set_joint_positions(self.world.robot, self.world.arm_joints, self.current_pos[:7])
-
         set_joint_positions(self.world.robot, self.world.base_joints, base_pos)
 
     def get_target_joint_angles(self, target_pose):

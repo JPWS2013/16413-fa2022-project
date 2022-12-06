@@ -25,7 +25,7 @@ class TreeNode(object):
         self.theta = theta
 
 class MotionPlanner:
-    def __init__(self, robot, kitchen, base_joints, arm_joints, kitchen_items, iterations=10000, base_d=0.5, arm_d = 0.8, goal_int=20, goal_biasing=True, run_rrtstar=False, arm_goal_radius = 0.1, base_goal_radius = 0.06, base_step_size=0.05, base_theta_step_size=math.pi/32, arm_step_size = 0.1):
+    def __init__(self, robot, kitchen, base_joints, arm_joints, kitchen_items, iterations=10000, base_d=0.5, arm_d = 0.8, goal_int=20, goal_biasing=True, run_rrtstar=False, arm_goal_radius = 0.1, base_goal_radius = 0.06, base_step_size=0.05, base_theta_step_size=math.pi/32, arm_step_size = 0.1, base_planning_threshold=0.1):
         self.robot = robot
         self.kitchen = kitchen
         self.kitchen_links = set(get_all_links(self.kitchen))
@@ -41,6 +41,7 @@ class MotionPlanner:
         self.base_step_size = base_step_size
         self.base_theta_step_size = base_theta_step_size
         self.arm_step_size = arm_step_size
+        self.base_planning_threshold = base_planning_threshold
 
         base_x_joint = joint_from_name(self.robot, 'x')
 
@@ -410,9 +411,18 @@ class MotionPlanner:
 
         if body_to_plan == 'b':
             start_pos = get_joint_positions(self.robot, self.base_joints)
-            path_base = self.solve(start_pos, end_pos, body_to_plan, bodies_to_ignore)
-            if path_base == None:
-                raise ValueError("No feasible path for base found!")
+
+            eucl_dist = np.linalg.norm(np.array(end_pos)-np.array(start_pos[:2]))
+            print("Euclidean distance: ", eucl_dist)
+
+            if eucl_dist > self.base_planning_threshold:
+                print("Euclidean distnace is greater than ", self.base_planning_threshold, ", planning base movement")
+                path_base = self.solve(start_pos, end_pos, body_to_plan, bodies_to_ignore)
+                if path_base == None:
+                    raise ValueError("No feasible path for base found!")
+            else:
+                print("Start and end positions are close enough, no planning required!")
+                path_base = []
         
         elif body_to_plan == 'a':  
             start_pos = get_joint_positions(self.robot, self.arm_joints)  
