@@ -318,7 +318,7 @@ class ExecutionEngine():
                     self.move_robot(base_path, arm_path1)
                 self.active_attachment = None
                 if 'placein' in action:
-                    self.surface_attachment = create_attachment(self.world, target, get_link_name(self.world.kitchen, self.drawer_link))
+                    self.surface_attachment = create_surface_attachment(self.world, target, get_link_name(self.world.kitchen, self.drawer_link))
 
                 if not (arm_path2==None):
                     self.move_robot(base_path, arm_path2)
