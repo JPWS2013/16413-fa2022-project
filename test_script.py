@@ -22,7 +22,7 @@ from src.world import World
 from src.utils import JOINT_TEMPLATE, BLOCK_SIZES, BLOCK_COLORS, COUNTERS, \
     ALL_JOINTS, LEFT_CAMERA, CAMERA_MATRIX, CAMERA_POSES, CAMERAS, compute_surface_aabb, \
     BLOCK_TEMPLATE, name_from_type, GRASP_TYPES, SIDE_GRASP, joint_from_name, \
-    STOVES, TOP_GRASP, randomize, LEFT_DOOR, point_from_pose, translate_linearly, get_grasps, set_tool_pose
+    STOVES, TOP_GRASP, randomize, LEFT_DOOR, point_from_pose, translate_linearly, get_grasps, set_tool_pose, create_surface_attachment
 
 UNIT_POSE2D = (0., 0., 0.)
 
@@ -85,6 +85,7 @@ wait_for_user()
 os.system('Clear')
 
 action_option = 0
+drawer_pos = 0
 
 while action_option != 2:
     action_option = input("\nChoose an action:\n \
@@ -410,6 +411,16 @@ while action_option != 2:
         else:
             active_attachment = None
 
+    elif action_option == 12:
+        drawer_link = link_from_name(world.kitchen, 'indigo_drawer_handle_top')
+        surface_attachment = create_surface_attachment(world, 'potted_meat_can1', 'indigo_drawer_handle_top')
+        if drawer_pos == 0:
+            set_joint_position(world.kitchen, joint_from_name(world.kitchen, 'indigo_drawer_top_joint'), 0.4)
+            drawer_pos = 0.4
+        else:
+            set_joint_position(world.kitchen, joint_from_name(world.kitchen, 'indigo_drawer_top_joint'), 0)
+            drawer_pos = 0
+        surface_attachment.assign()
         
         
 
