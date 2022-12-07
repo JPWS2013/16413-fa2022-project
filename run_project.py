@@ -77,13 +77,19 @@ class ExecutionEngine():
 
     def grip(self, object):
         finger_joints = self.finger_joints.values()
-        finger_pos = get_joint_positions(self.world.robot, finger_joints)
-        next_finger_pos = finger_pos
 
-        while not body_collision(self.world.robot, object):
-            finger_pos = next_finger_pos
-            next_finger_pos = [(pos-0.005) for pos in finger_pos]
-            set_joint_positions(self.world.robot, finger_joints, next_finger_pos)
+        for joint in finger_joints:
+            finger_pos = get_joint_position(self.world.robot, joint)
+            
+            while not body_collision(self.world.robot, object):
+                finger_pos -= 0.005
+                set_joint_position(self.world.robot, joint, finger_pos)
+                
+                if finger_pos <= 0:
+                    break
+
+            finger_pos += 0.005
+            set_joint_position(self.world.robot, joint, finger_pos)
 
 
 
