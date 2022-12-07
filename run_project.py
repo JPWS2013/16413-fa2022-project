@@ -11,7 +11,7 @@ from src.world import World
 from src.utils import JOINT_TEMPLATE, BLOCK_SIZES, BLOCK_COLORS, COUNTERS, \
     ALL_JOINTS, LEFT_CAMERA, CAMERA_MATRIX, CAMERA_POSES, CAMERAS, compute_surface_aabb, BLOCK_TEMPLATE, name_from_type, GRASP_TYPES, SIDE_GRASP, joint_from_name, STOVES, TOP_GRASP, randomize, LEFT_DOOR, point_from_pose, translate_linearly, create_surface_attachment, surface_from_name
 
-from pybullet_tools.utils import set_pose, Pose, Point, Euler, multiply, get_pose, get_point, create_box, set_all_static, WorldSaver, create_plane, COLOR_FROM_NAME, stable_z_on_aabb, pairwise_collision, elapsed_time, get_aabb_extent, get_aabb, create_cylinder, set_point, get_function_name, wait_for_user, dump_world, set_random_seed, set_numpy_seed, get_random_seed, get_numpy_seed, set_camera, set_camera_pose, link_from_name, get_movable_joints, get_joint_name, CIRCULAR_LIMITS, get_custom_limits, set_joint_positions, interval_generator, get_link_pose, interpolate_poses, get_all_links, get_link_names, get_link_inertial_pose, body_from_name, get_pose, get_link_name, get_bodies, dump_body, create_attachment, get_body_name, get_joint_positions, get_position_waypoints, get_quaternion_waypoints, quat_from_euler, euler_from_quat, get_joint_position, set_joint_position
+from pybullet_tools.utils import set_pose, Pose, Point, Euler, multiply, get_pose, get_point, create_box, set_all_static, WorldSaver, create_plane, COLOR_FROM_NAME, stable_z_on_aabb, pairwise_collision, elapsed_time, get_aabb_extent, get_aabb, create_cylinder, set_point, get_function_name, wait_for_user, dump_world, set_random_seed, set_numpy_seed, get_random_seed, get_numpy_seed, set_camera, set_camera_pose, link_from_name, get_movable_joints, get_joint_name, CIRCULAR_LIMITS, get_custom_limits, set_joint_positions, interval_generator, get_link_pose, interpolate_poses, get_all_links, get_link_names, get_link_inertial_pose, body_from_name, get_pose, get_link_name, get_bodies, dump_body, create_attachment, get_body_name, get_joint_positions, get_position_waypoints, get_quaternion_waypoints, quat_from_euler, euler_from_quat, get_joint_position, set_joint_position, get_joint_limits, get_joint_names, get_joints, body_collision
 
 from pybullet_tools.ikfast.ikfast import closest_inverse_kinematics
 from pybullet_tools.ikfast.franka_panda.ik import PANDA_INFO, FRANKA_URDF
@@ -36,6 +36,9 @@ class ExecutionEngine():
         self.drawer_joint = joint_from_name(self.world.kitchen, 'indigo_drawer_top_joint')
         self.drawer_link = link_from_name(self.world.kitchen, 'indigo_drawer_handle_top')
         self.drawer_links = [link_from_name(self.world.kitchen, 'indigo_drawer_handle_top'), link_from_name(self.world.kitchen, 'indigo_drawer_top')]
+        self.finger_joints = self.get_finger_joints()
+        self.set_fingers(0.065)
+
         # Map location and object names to locations in the world and also get the starting (current) position of the robot in the world
         # location_map: A dictionary mapping kitchen locations to (x,y) positions
         # object_map: A dictionary mapping object names to ((x,y,z), quat) poses that the robot tool needs to be in
@@ -55,6 +58,34 @@ class ExecutionEngine():
 
         # Initialize the motion planner object for motion planning
         self.motion_planner = mp.MotionPlanner(self.world.robot, self.world.kitchen, self.world.base_joints, self.world.arm_joints, self.object_dict)
+    
+    def get_finger_joints(self):
+        finger_joints = dict()
+
+        robot_joints = get_joints(self.world.robot)
+        joint_names = get_joint_names(self.world.robot, robot_joints)
+        
+        for joint_name, joint in zip(joint_names, robot_joints):
+            if 'finger' in joint_name:
+                finger_joints[joint_name] = joint
+
+        return finger_joints
+
+    def set_fingers(self, pos):
+        for joint in self.finger_joints.values():
+            set_joint_position(self.world.robot, joint, pos)
+
+    def grip(self, object):
+        finger_joints = self.finger_joints.values()
+        finger_pos = get_joint_positions(self.world.robot, finger_joints)
+        next_finger_pos = finger_pos
+
+        while not body_collision(self.world.robot, object):
+            finger_pos = next_finger_pos
+            next_finger_pos = [(pos-0.005) for pos in finger_pos]
+            set_joint_positions(self.world.robot, finger_joints, next_finger_pos)
+
+
 
     def end(self):
         print("Destroying world object")
@@ -96,8 +127,8 @@ class ExecutionEngine():
             plan_dict[action.name+str(action.parameters)] = self.plan_action(action)
             wait_for_user()
             
-            # if i >= 9:
-            #     break
+            if i >= 4:
+                break
 
         # Once motion planning is complete, destroy the old world object so that a new one can be created that uses the gui
         self.end()
@@ -105,6 +136,8 @@ class ExecutionEngine():
         self.active_attachment = None #Determines the object being grasped by the tool (if not None)
         self.surface_attachment = None
         self.drawer_status = None #Determines whether the drawer is being opened or closed (if not None)
+
+        self.set_fingers(0.065)
 
         # Reset the variables keeping track of the current pos to the starting point of the robot before starting to execute the plans
         self.current_pos = self.location_map['start_pos']
@@ -255,6 +288,7 @@ class ExecutionEngine():
                 self.update_robot_position(tuple(arm_path1[-1]), self.current_pos[7:]) #Update the execution engine's knowledge of the robot's current position
                 
                 self.active_attachment = create_attachment(self.world.robot, link_from_name(self.world.robot, 'panda_hand'), self.world.get_body(target))
+                self.grip(self.world.get_body(target))
 
             base_path1, arm_path2 = self.motion_planner.plan(self.arm_park, 'a')
             self.update_robot_position(tuple(arm_path2[-1]), self.current_pos[7:]) #Update the execution engine's knowledge of the robot's current position
@@ -273,6 +307,7 @@ class ExecutionEngine():
             self.update_robot_position(tuple(arm_path1[-1]), self.current_pos[7:])
 
             self.active_attachment = None
+            self.set_fingers(0.065)
 
             base_path1, arm_path2 = self.motion_planner.plan(self.arm_park, 'a')
             self.update_robot_position(tuple(arm_path2[-1]), self.current_pos[7:]) #Update the execution engine's knowledge of the robot's current position
@@ -307,6 +342,7 @@ class ExecutionEngine():
                 print("Creating attachment to ", target)
 
                 self.active_attachment = create_attachment(self.world.robot, link_from_name(self.world.robot, 'panda_hand'), self.world.get_body(target))
+                self.grip(self.world.get_body(target))
 
                 if not (arm_path2==None):
                     self.move_robot(base_path, arm_path2)
@@ -319,6 +355,8 @@ class ExecutionEngine():
                 self.active_attachment = None
                 if 'placein' in action:
                     self.surface_attachment = create_surface_attachment(self.world, target, get_link_name(self.world.kitchen, self.drawer_link))
+
+                self.set_fingers(0.065)
 
                 if not (arm_path2==None):
                     self.move_robot(base_path, arm_path2)
@@ -481,11 +519,11 @@ class ExecutionEngine():
         # name = get_body_name(body)
 
         if "potted_meat" in name:
-            return ((0.26717514421272204, 0.9903984489160852, -0.4970404981710017), (-0.2705980500730985, -0.6532814824381882, -0.27059805007309856, 0.6532814824381883))
+            return ((0.2777817459305203, 0.979791847198287, -0.4970404981710017), (-0.2705980500730985, -0.6532814824381882, -0.27059805007309856, 0.6532814824381883))
 
         
         elif "sugar_box" in name:
-            return ((-0.06514718625761427, 0.5510050506338834, -0.4090197508010679), (-0.2705980500730985, -0.6532814824381882, -0.27059805007309856, 0.6532814824381883))
+            return ((-0.05807611844574878, 0.5439339828220179, -0.4540235005339055), (-0.2705980500730985, -0.6532814824381882, -0.27059805007309856, 0.6532814824381883))
         
         else:
             raise ValueError(name)
