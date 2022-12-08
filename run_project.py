@@ -325,7 +325,7 @@ class ExecutionEngine():
             link = link_from_name(self.world.kitchen, location)
             target_pose = get_link_pose(self.world.kitchen, link)
             link_lower, link_upper = get_aabb(self.world.kitchen, link)
-            front_edge_x_pos = max(link_upper[0], link_lower[0])
+            # front_edge_x_pos = max(link_upper[0], link_lower[0])
 
             print("link_lower:", link_lower)
             print("link_upper", link_upper)
@@ -334,11 +334,11 @@ class ExecutionEngine():
             if action.name == 'placein':
                 adjusted_target_x = target_pose[0][0]-0.15
                 adjusted_target_y = target_pose[0][1]
+                adjusted_target_z = link_lower[2]+self.actual_grip_height
             else:
                 adjusted_target_x = target_pose[0][0]+0.3
                 adjusted_target_y = target_pose[0][1]+0.3
-
-            adjusted_target_z = target_pose[0][2]+self.actual_grip_height
+                adjusted_target_z = link_upper[2]+self.actual_grip_height
 
             target_pose = ((adjusted_target_x, adjusted_target_y, adjusted_target_z), quat_from_euler((0, -math.pi/2, 0)) )
             print("Target pose for ", target, ':', target_pose)
