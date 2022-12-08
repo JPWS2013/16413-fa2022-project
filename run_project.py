@@ -49,12 +49,14 @@ class ExecutionEngine():
         # Establish relevant movement constraints
         self.drawer_mvmt_dist = 0.4 #When opening the drawer, drawer only opens 0.4m
         self.arm_park = [0.12, -0.5698, 0, -2.8106, -0.0003, 3.0363, 0.7411]
+        self.offset_from_edge = 0.2 #How far from the edge of the countertop or drawer to put the object
         # print("Object map: ", self.object_map)
 
         # Set up variables to determine attachments of the robot to objects and furniture
         self.active_attachment = None #Determines the object being grasped by the tool (if not None)
         self.drawer_status = None #Determines whether the drawer is being opened or closed (if not None)
         self.surface_attachment = None
+        self.actual_grip_height = None #Measurement of actual grip height after path has been planned
 
         # Initialize the motion planner object for motion planning
         self.motion_planner = mp.MotionPlanner(self.world.robot, self.world.kitchen, self.world.base_joints, self.world.arm_joints, self.object_dict)
@@ -296,16 +298,35 @@ class ExecutionEngine():
                 self.active_attachment = create_attachment(self.world.robot, link_from_name(self.world.robot, 'panda_hand'), self.world.get_body(target))
                 self.grip(self.world.get_body(target))
 
+            print("Measuring grip height from", location)
+
+            tool_pos, tool_quat = get_link_pose(self.world.robot, self.tool_link)
+            link = link_from_name(self.world.kitchen, location)
+            surf_pos, surf_quat = get_link_pose(self.world.kitchen, link)
+
+            self.actual_grip_height = tool_pos[2] - surf_pos[2]
+            print("Actual grip height: ", self.actual_grip_height)
+
             base_path1, arm_path2 = self.motion_planner.plan(self.arm_park, 'a')
             self.update_robot_position(tuple(arm_path2[-1]), self.current_pos[7:]) #Update the execution engine's knowledge of the robot's current position
+
             return(target, None, (arm_path1, arm_path2))
 
         if (action.name == 'placein') or (action.name == 'placeon'):
             arm, target, location = action.parameters
 
+            print("Placing object on ", location)
+            print("Current robot location: ", get_joint_positions(self.world.robot, self.world.base_joints))
             link = link_from_name(self.world.kitchen, location)
             target_pose = get_link_pose(self.world.kitchen, link)
-            target_pose = ((target_pose[0][0]+0.3, target_pose[0][1], (target_pose[0][2]+0.1)), quat_from_euler((0, -math.pi/2, 0)) )
+            link_lower, link_upper = get_aabb(self.world.kitchen, link)
+            front_edge_x_pos = max(link_upper[0], link_lower[0])
+
+            print("link_lower:", link_lower)
+            print("link_upper", link_upper)
+            print("pose of ", location, " :", target_pose)
+
+            target_pose = (((target_pose[0][0]+0.3), target_pose[0][1], (target_pose[0][2]+self.actual_grip_height)), quat_from_euler((0, -math.pi/2, 0)) )
             print("Target pose for ", target, ':', target_pose)
             target_joint_angles = self.get_target_joint_angles(target_pose)
 
