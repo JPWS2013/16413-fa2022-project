@@ -131,9 +131,14 @@ class ExecutionEngine():
         plan_dict = dict()
 
         for i, action in enumerate(act_plan):
-            
-            plan_dict[action.name+str(action.parameters)] = self.plan_action(action)
-            wait_for_user()
+            try:
+                plan_dict[action.name+str(action.parameters)] = self.plan_action(action)
+                wait_for_user()
+
+            except (ValueError, KeyboardInterrupt) as error:
+                print("\nUser killed the script or unable to find path")
+                wait_for_user('Displaying what has been planned. Hit enter to continue')
+                break
             
             # if i >= 4:
             #     break
