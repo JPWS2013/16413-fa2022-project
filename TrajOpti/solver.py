@@ -1,0 +1,1 @@
+# Plan in joint space for the arm, cartesian for the base
