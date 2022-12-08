@@ -177,6 +177,9 @@ class MotionPlanner:
                     print('Collision being ignored with', item_name)
             if item_obj in bodies_to_ignore:
                 bodies_to_ignore.remove(item_obj)
+
+            if body_collision(self.kitchen, item_obj):
+                return False
         # Check if robot is in collision with itself
         # autorobotic_collision = body_collision(self.robot, self.robot)
 
