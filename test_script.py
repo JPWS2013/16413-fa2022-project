@@ -66,6 +66,23 @@ print('Arm Joints', [get_joint_name(world.robot, joint) for joint in world.arm_j
 sample_fn = get_sample_fn(world.robot, world.arm_joints)
 active_attachment = None
 kitchen_links = get_all_links(world.kitchen)
+robot_joints = get_joints(world.robot)
+joint_names = get_joint_names(world.robot, robot_joints)
+finger_joints = dict()
+for joint_name, joint in zip(joint_names, robot_joints):
+    if 'finger' in joint_name:
+
+        finger_joints[joint_name] = (joint, get_joint_limits(world.robot, joint))
+
+print("Finger joint stats: ", finger_joints)
+
+wait_for_user("Hit enter to move finger joints")
+
+joints, joint_limits = zip(*finger_joints.values())
+
+set_joint_positions(world.robot, joints, [0.065,0.065])
+
+# print("Positions of the finger joints: ", get_joint_positions(world.robot, finger_joints.values()))
 wait_for_user()
 # print("Getting random sample")
 # conf = sample_fn()
@@ -228,6 +245,11 @@ while action_option != 2:
         if body_collision(world.robot, meat):
             print("Collision with meat can!")
 
+        if body_collision(world.kitchen, sugar):
+            print("Collision between sugar and kitchen!")
+        if body_collision(world.kitchen, meat):
+            print("Collision between kitchen and meat can!")
+
     elif action_option == 6:
         print("Getting random sample")
         conf = sample_fn()
@@ -312,14 +334,14 @@ while action_option != 2:
         print("Object aabb is: ", obj_lower, obj_upper)
         
         user_selection = ''
-        x_shift_obj_orig = -0.01
-        y_shift_obj_orig = -0.13
+        x_shift_obj_orig = -0.03
+        y_shift_obj_orig = -0.14
         # tool_backoff_dist = 0.1 #Distance to back the tool off the object
         x_backoff = (x_shift_obj_orig*math.cos(euler_angles[2])) - (y_shift_obj_orig*math.sin(euler_angles[2]))
         y_backoff = (x_shift_obj_orig*math.sin(euler_angles[2])) + (y_shift_obj_orig*math.cos(euler_angles[2]))
 
         tool_euler_angles = (euler_angles[0], (-0.5*math.pi), -euler_angles[2])
-        coord = ((coord[0]+x_backoff), (coord[1]+y_backoff), (coord[2]+(obj_height*3/4))) #Raise z by 0.05 to be at the right height to grip object
+        coord = ((coord[0]+x_backoff), (coord[1]+y_backoff), (coord[2]+(obj_height/2))) #Raise z by 0.05 to be at the right height to grip object
         pose = (coord, quat_from_euler(tool_euler_angles))
 
         print("Calculated tool pose: ", pose)
@@ -421,8 +443,53 @@ while action_option != 2:
             set_joint_position(world.kitchen, joint_from_name(world.kitchen, 'indigo_drawer_top_joint'), 0)
             drawer_pos = 0
         surface_attachment.assign()
+
+    elif action_option == 13:
+        user_obj = input("What object would you like to work with? ")
+        user_obj = user_obj.strip()
+
+        set_joint_positions(world.robot, world.base_joints, [0.7, 0.67, -1.57])
+        start_grip_pose  = ((-0.05807611844574878, 0.5439339828220179, -0.4540235005339055), (-0.2705980500730985, -0.6532814824381882, -0.27059805007309856, 0.6532814824381883))
+        conf = next(closest_inverse_kinematics(world.robot, PANDA_INFO, tool_link, start_grip_pose, max_time=0.05), None)
+
+        if conf != None:
+            set_joint_positions(world.robot, world.arm_joints, conf)
+        else:
+            raise ValueError("Unable to get joint angles!")
+
+        attachment = create_attachment(world.robot, link_from_name(world.robot, 'panda_hand'), world.get_body(user_obj))
+
+        wait_for_user('Ready to move sugar box, hit enter to continue')
         
+        tool_pos, tool_quat = get_link_pose(world.robot, tool_link)
+        link = link_from_name(world.kitchen, 'back_right_stove')
+        surf_pos, surf_quat = get_link_pose(world.kitchen, link)
+
+        actual_grip_height = tool_pos[2] - surf_pos[2]
+        print("Actual grip height: ", actual_grip_height)
+
+        link = link_from_name(world.kitchen, 'hitman_countertop')
+        target_pose = get_link_pose(world.kitchen, link)
+        link_lower, link_upper = get_aabb(world.kitchen, link)
+        front_edge_x_pos = max(link_upper[0], link_lower[0])
         
+        print("Front edge xposition: ", front_edge_x_pos)
+        print("link_lower:", link_lower)
+        print("link_upper", link_upper)
+
+        target_pose = (((target_pose[0][0]+0.3), target_pose[0][1], (target_pose[0][2]+actual_grip_height)), quat_from_euler((0, -math.pi/2, 0)) )
+        print("Target pose for ", user_obj, ':', target_pose)
+        
+        set_joint_positions(world.robot, world.base_joints, [0.7, -0.75, -1.57])
+        
+        conf = next(closest_inverse_kinematics(world.robot, PANDA_INFO, tool_link, target_pose, max_time=0.05), None)
+
+        if conf != None:
+            set_joint_positions(world.robot, world.arm_joints, conf)
+        else:
+            print("Unable to get joint angles!")
+
+        attachment.assign()
 
     else:
         print(action_option, " is an invalid input option! Please try again.")
