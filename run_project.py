@@ -519,7 +519,7 @@ class ExecutionEngine():
 
                     #For all indigo locations (countertop an drawer), stop beside the drawer so that the robot isn't blocking the drawer
                     if "indigo" in loc:
-                        location_map[loc] = (0.7, 0.6)
+                        location_map[loc] = (0.7, 0.55)
                     else:
                     #For locations in the kitchen, park just in front of the counter which is about +0.7, leave y coordinate alone
                         location_map[loc] = (0.7, coord_y)
