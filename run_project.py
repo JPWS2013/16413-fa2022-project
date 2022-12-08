@@ -135,8 +135,8 @@ class ExecutionEngine():
             plan_dict[action.name+str(action.parameters)] = self.plan_action(action)
             wait_for_user()
             
-            if i >= 4:
-                break
+            # if i >= 4:
+            #     break
 
         # Once motion planning is complete, destroy the old world object so that a new one can be created that uses the gui
         self.end()
@@ -328,10 +328,14 @@ class ExecutionEngine():
 
             if action.name == 'placein':
                 adjusted_target_x = target_pose[0][0]-0.15
+                adjusted_target_y = target_pose[0][1]
             else:
                 adjusted_target_x = target_pose[0][0]+0.3
+                adjusted_target_y = target_pose[0][1]+0.3
 
-            target_pose = ((adjusted_target_x, target_pose[0][1], (target_pose[0][2]+self.actual_grip_height)), quat_from_euler((0, -math.pi/2, 0)) )
+            adjusted_target_z = target_pose[0][2]+self.actual_grip_height
+
+            target_pose = ((adjusted_target_x, adjusted_target_y, adjusted_target_z), quat_from_euler((0, -math.pi/2, 0)) )
             print("Target pose for ", target, ':', target_pose)
             target_joint_angles = self.get_target_joint_angles(target_pose)
 
