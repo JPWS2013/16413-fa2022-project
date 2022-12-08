@@ -133,7 +133,7 @@ class ExecutionEngine():
         for i, action in enumerate(act_plan):
             try:
                 plan_dict[action.name+str(action.parameters)] = self.plan_action(action)
-                wait_for_user()
+                # wait_for_user()
 
             except (ValueError, KeyboardInterrupt) as error:
                 print("\nUser killed the script or unable to find path")
@@ -332,7 +332,7 @@ class ExecutionEngine():
             print("pose of ", location, " :", target_pose)
 
             if action.name == 'placein':
-                adjusted_target_x = target_pose[0][0]-0.15
+                adjusted_target_x = target_pose[0][0]
                 adjusted_target_y = target_pose[0][1]
                 adjusted_target_z = link_lower[2]+self.actual_grip_height
             else:
