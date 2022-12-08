@@ -47,7 +47,7 @@ class ExecutionEngine():
         self.location_map, self.object_map, self.object_dict, self.current_pos = self.create_maps()
 
         # Establish relevant movement constraints
-        self.drawer_mvmt_dist = 0.4 #When opening the drawer, drawer only opens 0.4m
+        self.drawer_mvmt_dist = 0.35 #When opening the drawer, drawer only opens 0.4m
         self.arm_park = [0.12, -0.5698, 0, -2.8106, -0.0003, 3.0363, 0.7411]
         self.offset_from_edge = 0.2 #How far from the edge of the countertop or drawer to put the object
         # print("Object map: ", self.object_map)
