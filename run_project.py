@@ -326,7 +326,12 @@ class ExecutionEngine():
             print("link_upper", link_upper)
             print("pose of ", location, " :", target_pose)
 
-            target_pose = (((target_pose[0][0]+0.3), target_pose[0][1], (target_pose[0][2]+self.actual_grip_height)), quat_from_euler((0, -math.pi/2, 0)) )
+            if action.name == 'placein':
+                adjusted_target_x = target_pose[0][0]-0.15
+            else:
+                adjusted_target_x = target_pose[0][0]+0.3
+
+            target_pose = ((adju;sted_taret_x, target_pose[0][1], (target_pose[0][2]+self.actual_grip_height)), quat_from_euler((0, -math.pi/2, 0)) )
             print("Target pose for ", target, ':', target_pose)
             target_joint_angles = self.get_target_joint_angles(target_pose)
 
