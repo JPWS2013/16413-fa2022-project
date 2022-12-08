@@ -136,7 +136,8 @@ class ExecutionEngine():
                 # wait_for_user()
 
             except (ValueError, KeyboardInterrupt) as error:
-                print("\nUser killed the script or unable to find path")
+                print("\nUser killed the script or unable to find path. Error:")
+                print(error)
                 wait_for_user('Displaying what has been planned. Hit enter to continue')
                 break
             
