@@ -1,5 +1,6 @@
-from pydrake.solvers import MathematicalProgram, Solve
+from pydrake.all import MathematicalProgram, Solve
 import numpy as np
+import copy
 
 SUBMODULE_PATH= os.path.abspath(os.path.join(os.getcwd(), 'padm-project-2022f'))
 sys.path.append(SUBMODULE_PATH)
@@ -10,12 +11,15 @@ from pybullet_tools.utils import set_pose, Pose, Point, Euler, multiply, get_pos
 
 
 class solver:
-    def __init__(self, guess_vector, time_step = 0.05, duration = 5, radius = 0.05, start_pos = np.array([0.12, -0.5698, 0, -2.8106, -0.0003, 3.0363, 0.7411]), end_pos = np.array([-0.010923567328455445, 0.3756526760797238, -0.7289112485142143, -2.2175170144491707, 2.4638620692328344, 1.9346847840915486, -1.770862013075821])):
+    def __init__(self, guess_matrix, radius = 0.05, start_pos = np.array([0.12, -0.5698, 0, -2.8106, -0.0003, 3.0363, 0.7411]), end_pos = np.array([-0.010923567328455445, 0.3756526760797238, -0.7289112485142143, -2.2175170144491707, 2.4638620692328344, 1.9346847840915486, -1.770862013075821])):
+    #def __init__(self, guess_matrix, time_step = 0.05, duration = 5, radius = 0.05, start_pos = np.array([0.12, -0.5698, 0, -2.8106, -0.0003, 3.0363, 0.7411]), end_pos = np.array([-0.010923567328455445, 0.3756526760797238, -0.7289112485142143, -2.2175170144491707, 2.4638620692328344, 1.9346847840915486, -1.770862013075821])):
         self.radius = radius
-        self.time_step = time_step
-        self.duration = duration
+        self.guess_matrix = np.array(guess_matrix)
+        # self.time_step = time_step
+        # self.duration = duration
         self.prog = MathematicalProgram()
-        self.num_time_steps = int(self.duration/self.time_step)
+        self.num_rows, self.num_cols = self.guess_matrix.shape
+        self.num_time_steps = self.num_cols
         self.var_matrix = self.prog.NewContinuousVariables(7, self.num_time_steps , "j")
         self.start_pos = start_pos
         self.end_pos = end_pos
@@ -45,7 +49,7 @@ class solver:
             return np.array([j[: 0]])
 
         constraint2 = self.prog.AddConstraint(
-            joint_constraint,
+            start_constraint,
             lb=np.array(self.start_pos) - self.radius,
             ub=np.array(self.start_pos) + self.radius,
             vars=self.var_matrix)
@@ -54,17 +58,24 @@ class solver:
             return np.array([j[: -1]])
 
         constraint3 = self.prog.AddConstraint(
-            joint_constraint,
+            end_constraint,
             lb=np.array(self.end_pos) - self.radius,
             ub=np.array(self.end_pos) + self.radius,
             vars=self.var_matrix)
 
+        #self.prog.SetInitialGuess(self.var_matrix, self.guess_matrix)
+
+        def optimize():
+            result = Solve(self.prog)
+            print(f"Is optimization successful? {result.is_success()}")
+            print(f"Solution to x: {result.GetSolution(j)}")
+            print(f"optimal cost: {result.get_optimal_cost()}")
+            return np.array([j[: -1]])
+
+        optimal_traject = optimize()
 
 
-        # Set the value of p1 in initial guess to be [0, 1]
-        self.prog.SetInitialGuess(p1, [0., 1.])
-        # Set the value of p2 in initial guess to be [1, 1]
-        self.prog.SetInitialGuess(p2, [1., 1.])
+
 
 
 def create_world(use_gui=False):
@@ -111,6 +122,7 @@ if __name__ == "__main__":
         'arm': [-0.010923567328455445, 0.3756526760797238, -0.7289112485142143, -2.2175170144491707, 2.4638620692328344, 1.9346847840915486, -1.770862013075821],
         'base': [0.7, -0.75, -1.57]
     }
+    guess_matrix = []
 
     print("Starting the base at ", start_pos['base'], " and the arm at ", start_pos['arm'])
     if end_pos['arm']:
