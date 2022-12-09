@@ -346,6 +346,10 @@ class ExecutionEngine():
             target_joint_angles = self.get_target_joint_angles(target_pose)
 
             base_path, arm_path1 = self.motion_planner.plan(target_joint_angles, 'a')
+            
+            if action.name == 'placeon':
+                self.save_parameters_for_traj_opt(arm_path1, self.current_pos, target_joint_angles)
+            
             self.update_robot_position(tuple(arm_path1[-1]), self.current_pos[7:])
 
             self.active_attachment = None
@@ -356,6 +360,21 @@ class ExecutionEngine():
                 
             return(target, None, (arm_path1, arm_path2))
     
+    def save_parameters_for_traj_opt(self, arm_path1, start_pos, end_pos):
+        decision_var_matrix = np.zeros((7, len(arm_path1))
+        )
+        for i, path_point in enumerate(arm_path1):
+            # path_point_arr = np.arrray(path_point)
+            # path_point_arr.transpose()
+
+            decision_var_matrix[:, i] = np.array(path_point).transpose()
+
+        rounded_decision_var_matrix = np.around(decision_var_matrix, decimals=3)
+
+        header_txt=str(start_pos[7:]) + '\n' + str(start_pos[:7]) + '\n' + str(end_pos)
+
+        np.savetxt('traj_opt_data.csv', rounded_decision_var_matrix, header = header_txt, delimiter=',')
+
     def execute_plan(self, plan_dict):
         for action, (target, base_path, arm_path) in plan_dict.items():
             print("Executing ", action)
