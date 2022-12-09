@@ -102,12 +102,12 @@ if __name__ == "__main__":
 
     # Hard-coded start and end points for the chosen trajectory
     start_pos = {
-        'arm': [],
-        'base:': []
+        'arm':  [0.12, -0.5698, 0, -2.8106, -0.0003, 3.0363, 0.7411],
+        'base:': [0.7, -0.75, -1.57]
     }
     end_pos = {
-        'arm': [].
-        'base': []
+        'arm': [-0.010923567328455445, 0.3756526760797238, -0.7289112485142143, -2.2175170144491707, 2.4638620692328344, 1.9346847840915486, -1.770862013075821],
+        'base': [0.7, -0.75, -1.57]
     }
 
     print("Starting the base at ", start_pos['base'], " and the arm at ", start_pos['arm'])
