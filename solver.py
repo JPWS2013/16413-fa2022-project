@@ -1,5 +1,6 @@
 from pydrake.solvers import MathematicalProgram, Solve
 import numpy as np
+import os, sys, csv
 
 SUBMODULE_PATH= os.path.abspath(os.path.join(os.getcwd(), 'padm-project-2022f'))
 sys.path.append(SUBMODULE_PATH)
@@ -8,6 +9,7 @@ sys.path.extend(os.path.join(SUBMODULE_PATH, d) for d in ['pddlstream', 'ss-pybu
 from src.world import World
 from pybullet_tools.utils import set_pose, Pose, Point, Euler, multiply, get_pose, get_point, create_box, set_all_static, WorldSaver, create_plane, COLOR_FROM_NAME, stable_z_on_aabb, pairwise_collision, elapsed_time, get_aabb_extent, get_aabb, create_cylinder, set_point, get_function_name, wait_for_user, dump_world, set_random_seed, set_numpy_seed, get_random_seed, get_numpy_seed, set_camera, set_camera_pose, link_from_name, get_movable_joints, get_joint_name, CIRCULAR_LIMITS, get_custom_limits, set_joint_positions, interval_generator, get_link_pose, interpolate_poses, get_all_links, get_link_names, get_link_inertial_pose, body_from_name, get_pose, get_link_name, get_bodies, dump_body, create_attachment, get_body_name, get_joint_positions, get_position_waypoints, get_quaternion_waypoints, quat_from_euler, euler_from_quat, get_joint_position, set_joint_position, get_joint_limits, get_joint_names, get_joints, body_collision
 
+UNIT_POSE2D = (0., 0., 0.)
 
 class solver:
     def __init__(self, guess_matrix, radius = 0.05, start_pos = np.array([0.12, -0.5698, 0, -2.8106, -0.0003, 3.0363, 0.7411]), end_pos = np.array([-0.010923567328455445, 0.3756526760797238, -0.7289112485142143, -2.2175170144491707, 2.4638620692328344, 1.9346847840915486, -1.770862013075821])):
@@ -108,20 +110,60 @@ def pose2d_on_surface(world, entity_name, surface_name, pose2d=UNIT_POSE2D):
 add_sugar_box = lambda world, **kwargs: add_ycb(world, 'sugar_box', **kwargs)
 add_spam_box = lambda world, **kwargs: add_ycb(world, 'potted_meat_can', **kwargs)
 
+def import_trajectory_parameters(filename):
+    with open(filename,  'r') as file:
+        chars = '#[() '
+        reader = csv.reader(file)
+        var_start_list = []
+        for i, row in enumerate(reader):
+            if i == 0:
+                base_pos = []
+                for element in row:
+                    base_pos.append(float(element.strip(chars)))
+
+            elif i == 1:
+                arm_start_angles = []
+                
+                for element in row:
+                    arm_start_angles.append(float(element.strip(chars)))
+
+            elif i == 2:
+                arm_goal_angles = []
+
+                for element in row:
+                    arm_goal_angles.append(element.strip(chars))
+
+            else:
+                row = [float(x) for x in row]
+                var_start_list.append(row)
+
+    start_pos = {
+        'arm':  arm_start_angles,
+        'base': base_pos
+    }
+    end_pos = {
+        'arm': arm_goal_angles,
+        'base': base_pos
+    }
+
+    var_start_matrix = np.array(var_start_list)
+
+    return start_pos, end_pos, var_start_matrix
+
 if __name__ == "__main__":
 
     #TODO: Initialize solver
 
     # Hard-coded start and end points for the chosen trajectory
-    start_pos = {
-        'arm':  [0.12, -0.5698, 0, -2.8106, -0.0003, 3.0363, 0.7411],
-        'base:': [0.7, -0.75, -1.57]
-    }
-    end_pos = {
-        'arm': [-0.010923567328455445, 0.3756526760797238, -0.7289112485142143, -2.2175170144491707, 2.4638620692328344, 1.9346847840915486, -1.770862013075821],
-        'base': [0.7, -0.75, -1.57]
-    }
-    guess_matrix = []
+    # start_pos = {
+    #     'arm':  [0.12, -0.5698, 0, -2.8106, -0.0003, 3.0363, 0.7411],
+    #     'base:': [0.7, -0.75, -1.57]
+    # }
+    # end_pos = {
+    #     'arm': [-0.010923567328455445, 0.3756526760797238, -0.7289112485142143, -2.2175170144491707, 2.4638620692328344, 1.9346847840915486, -1.770862013075821],
+    #     'base': [0.7, -0.75, -1.57]
+    # }
+    start_pos, end_pos, guess_matrix = import_trajectory_parameters('traj_opt_data.csv')
 
     print("Starting the base at ", start_pos['base'], " and the arm at ", start_pos['arm'])
     if end_pos['arm']:
