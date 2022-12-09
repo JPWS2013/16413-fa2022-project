@@ -1,7 +1,5 @@
 from pydrake.solvers import MathematicalProgram, Solve
 import numpy as np
-import copy
-import csv
 
 SUBMODULE_PATH= os.path.abspath(os.path.join(os.getcwd(), 'padm-project-2022f'))
 sys.path.append(SUBMODULE_PATH)
