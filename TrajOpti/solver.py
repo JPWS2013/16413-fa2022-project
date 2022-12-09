@@ -30,6 +30,8 @@ class solver:
                 total_cost += np.sum(subtraction_vec)
             return total_cost
 
+        cost1 = self.prog.AddCost(cost_fun, vars=self.var_matrix)
+
         def joint_constraint(j):
             return np.array([j[1 :], j[2 :], j[3 :], j[4 :], j[5 :], j[6 :], j[7 :]])
 
