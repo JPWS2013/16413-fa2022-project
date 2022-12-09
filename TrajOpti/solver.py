@@ -10,30 +10,52 @@ from pybullet_tools.utils import set_pose, Pose, Point, Euler, multiply, get_pos
 
 
 class solver:
-    def __init__(self, guess_vector)
+    def __init__(self, guess_vector, time_step = 0.05, duration = 5, radius = 0.05, start_pos = np.array([0.12, -0.5698, 0, -2.8106, -0.0003, 3.0363, 0.7411]), end_pos = np.array([-0.010923567328455445, 0.3756526760797238, -0.7289112485142143, -2.2175170144491707, 2.4638620692328344, 1.9346847840915486, -1.770862013075821])):
+        self.radius = radius
+        self.time_step = time_step
+        self.duration = duration
         self.prog = MathematicalProgram()
-        p1 = self.prog.NewContinuousVariables(7, "x")
+        self.num_time_steps = int(self.duration/self.time_step)
+        self.var_matrix = self.prog.NewContinuousVariables(7, self.num_time_steps , "j")
+        self.start_pos = start_pos
+        self.end_pos = end_pos
 
         # Set heuristic costs
 
-        def cost_fun(z, start_pos, end_pos):
-            return cos_z**2 + cos_z + sin_z
-        # Add the cost evaluated with x[0] and x[1].
-        cost1 = prog.AddCost(cost_fun, vars=[x[0], x[1]])
+        def cost_fun(j):
+            variable_array = np.array(j)
+            total_cost = 0
+            for i in range(2, self.num_time_steps ):
+                subtraction_vec = abs(variable_array[: i] - variable_array[: i-1])
+                total_cost += np.sum(subtraction_vec)
+            return total_cost
 
-        # Add the constraint that p1 is on the unit circle centered at (0, 2)
-        self.prog.AddConstraint(
-            lambda z: [z[0]**2 + (z[1]-2)**2],
-            lb=np.array([1.]),
-            ub=np.array([1.]),
-            vars=p1)
+        def joint_constraint(j):
+            return np.array([j[1 :], j[2 :], j[3 :], j[4 :], j[5 :], j[6 :], j[7 :]])
 
-        # Add the constraint that p2 is on the curve y=x*x
-        self.prog.AddConstraint(
-            lambda z: [z[1] - z[0]**2],
-            lb=[0.],
-            ub=[0.],
-            vars=p2)
+        constraint1 = self.prog.AddConstraint(
+            joint_constraint,
+            lb=np.array([np.full((1, self.num_time_steps), -2.8973), np.full((1, self.num_time_steps), -1.7628), np.full((1, self.num_time_steps), -2.8973), np.full((1, self.num_time_steps), -3.0718), np.full((1, self.num_time_steps), -2.8973), np.full((1, self.num_time_steps), -0.0175), np.full((1, self.num_time_steps), -2.8973)]),
+            ub=np.array([np.full((1, self.num_time_steps), 2.8973), np.full((1, self.num_time_steps), 1.7628), np.full((1, self.num_time_steps), 2.8973), np.full((1, self.num_time_steps), -0.0698), np.full((1, self.num_time_steps), 2.8973), np.full((1, self.num_time_steps), 3.7525), np.full((1, self.num_time_steps), 2.8973)]),
+            vars=self.var_matrix)
+
+        def start_constraint(j):
+            return np.array([j[: 0]])
+
+        constraint2 = self.prog.AddConstraint(
+            joint_constraint,
+            lb=np.array(self.start_pos) - self.radius,
+            ub=np.array(self.start_pos) + self.radius,
+            vars=self.var_matrix)
+
+        def end_constraint(j):
+            return np.array([j[: -1]])
+
+        constraint3 = self.prog.AddConstraint(
+            joint_constraint,
+            lb=np.array(self.end_pos) - self.radius,
+            ub=np.array(self.end_pos) + self.radius,
+            vars=self.var_matrix)
 
 
 
