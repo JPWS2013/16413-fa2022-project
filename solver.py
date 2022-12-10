@@ -11,69 +11,123 @@ from pybullet_tools.utils import set_pose, Pose, Point, Euler, multiply, get_pos
 
 UNIT_POSE2D = (0., 0., 0.)
 
-class solver:
-    def __init__(self, guess_matrix, radius = 0.05, start_pos = np.array([0.12, -0.5698, 0, -2.8106, -0.0003, 3.0363, 0.7411]), end_pos = np.array([-0.010923567328455445, 0.3756526760797238, -0.7289112485142143, -2.2175170144491707, 2.4638620692328344, 1.9346847840915486, -1.770862013075821])):
+class Solver:
+    def __init__(self, start_pos, end_pos, guess_matrix, radius = 0.05):
     #def __init__(self, guess_matrix, time_step = 0.05, duration = 5, radius = 0.05, start_pos = np.array([0.12, -0.5698, 0, -2.8106, -0.0003, 3.0363, 0.7411]), end_pos = np.array([-0.010923567328455445, 0.3756526760797238, -0.7289112485142143, -2.2175170144491707, 2.4638620692328344, 1.9346847840915486, -1.770862013075821])):
+        self.solver_objects = dict()
         self.radius = radius
         self.guess_matrix = np.array(guess_matrix)
+        self.guess_matrix = self.guess_matrix[:1,:]
+        # print("shape of guess matrix: ", self.guess_matrix.shape)
         # self.time_step = time_step
         # self.duration = duration
         self.prog = MathematicalProgram()
         self.num_rows, self.num_cols = self.guess_matrix.shape
         self.num_time_steps = self.num_cols
-        self.var_matrix = self.prog.NewContinuousVariables(7, self.num_time_steps , "j")
+        self.num_joints = self.num_rows
+        print("num joints: ", self.num_joints)
+        self.var_matrix = self.prog.NewContinuousVariables(self.num_joints, self.num_time_steps , "j")
+        # print('var matrix: ', self.var_matrix)
         self.start_pos = start_pos
         self.end_pos = end_pos
+        self.upper_joint_limits, self.lower_joint_limits = zip(*[
+            (-2.8973, 2.8973), #panda_joint1 limit
+            (-1.7628, 1.7628), #panda_joint2 limit
+            (-2.8973, 2.8973), #panda_joint3 limit
+            (-3.0718, -0.0698), #panda_joint4 limit
+            (-2.8973, 2.8973), #panda_joint5 limit
+            (-0.0175, 3.7525), #panda_joint6 limit
+            (-2.8973, 2.8973) #panda_joint7 limit
+        ])
+        self.upper_joint_limits = np.array(self.upper_joint_limits)[:self.num_joints]
+        self.lower_joint_limits = np.array(self.lower_joint_limits)[:self.num_joints]
 
+        print("Upper joint limits: ", self.upper_joint_limits)
+        print("Lower joint limits: ", self.lower_joint_limits)
+
+        # print("upper_joint_limits: ", self.upper_joint_limits)
+        # print("lower_joint_limits: ", self.lower_joint_limits)
+
+
+        self.upper_limits_matrix = np.tile(self.upper_joint_limits.reshape(-1,1), self.num_time_steps)
+        self.lower_limits_matrix = np.tile(self.lower_joint_limits.reshape(-1,1), self.num_time_steps)
+        
+        # print('upper limits: ', self.upper_limits_matrix)
+        # print('lower limits: ', self.lower_limits_matrix)
+        flattened_var_matrix = self.var_matrix.flatten()
+        print('Re-shaped var matrix: ', flattened_var_matrix.reshape((self.num_joints, self.num_time_steps)))
+        print('sliced variable array', self.var_matrix[:,1] - self.var_matrix[:0])
+        
         # Set heuristic costs
-
         def cost_fun(j):
-            variable_array = np.array(j)
+            variable_array = j.reshape((self.num_joints, self.num_time_steps))
             total_cost = 0
-            for i in range(2, self.num_time_steps ):
-                subtraction_vec = abs(variable_array[: i] - variable_array[: i-1])
+            for i in range(1, self.num_time_steps):
+                subtraction_vec = abs(variable_array[:, i] - variable_array[:, i-1])
                 total_cost += np.sum(subtraction_vec)
+
+            print("Total cost: ", total_cost)
             return total_cost
 
-        cost1 = self.prog.AddCost(cost_fun, vars=self.var_matrix)
+        self.solver_objects['cost'] = self.prog.AddCost(cost_fun, vars=self.var_matrix.flatten())
+        print(self.solver_objects['cost'])
+        # Return separate joint limit checkers, one for each joint over all time
+        # def joint_constraint(j):
+        #     return j
+        #     #return np.array([j[1 :], j[2 :], j[3 :], j[4 :], j[5 :], j[6 :], j[7 :]])
 
-        def joint_constraint(j):
-            return np.array([j[1 :], j[2 :], j[3 :], j[4 :], j[5 :], j[6 :], j[7 :]])
+        # for i in range(self.num_joints):
+        #     # print('lb for ', i, ': ', self.lower_limits_matrix[i,:])
+        #     # print('ub for ', i, ': ', self.upper_limits_matrix[i,:])
 
-        constraint1 = self.prog.AddConstraint(
-            joint_constraint,
-            lb=np.array([np.full((1, self.num_time_steps), -2.8973), np.full((1, self.num_time_steps), -1.7628), np.full((1, self.num_time_steps), -2.8973), np.full((1, self.num_time_steps), -3.0718), np.full((1, self.num_time_steps), -2.8973), np.full((1, self.num_time_steps), -0.0175), np.full((1, self.num_time_steps), -2.8973)]),
-            ub=np.array([np.full((1, self.num_time_steps), 2.8973), np.full((1, self.num_time_steps), 1.7628), np.full((1, self.num_time_steps), 2.8973), np.full((1, self.num_time_steps), -0.0698), np.full((1, self.num_time_steps), 2.8973), np.full((1, self.num_time_steps), 3.7525), np.full((1, self.num_time_steps), 2.8973)]),
-            vars=self.var_matrix)
+        #     self.solver_objects['joint_limit_'+str(i)] = self.prog.AddConstraint(
+        #         joint_constraint,
+        #         # lb=np.array([np.full((1, self.num_time_steps), -2.8973), np.full((1, self.num_time_steps), -1.7628), np.full((1, self.num_time_steps), -2.8973), np.full((1, self.num_time_steps), -3.0718), np.full((1, self.num_time_steps), -2.8973), np.full((1, self.num_time_steps), -0.0175), np.full((1, self.num_time_steps), -2.8973)]),
+        #         # ub=np.array([np.full((1, self.num_time_steps), 2.8973), np.full((1, self.num_time_steps), 1.7628), np.full((1, self.num_time_steps), 2.8973), np.full((1, self.num_time_steps), -0.0698), np.full((1, self.num_time_steps), 2.8973), np.full((1, self.num_time_steps), 3.7525), np.full((1, self.num_time_steps), 2.8973)]),
+        #         # vars=self.var_matrix)
+        #         lb=self.lower_limits_matrix[i,:],
+        #         ub=self.upper_limits_matrix[i,:],
+        #         vars=self.var_matrix[i,:].flatten())
 
-        def start_constraint(j):
-            return np.array([j[: 0]])
+        def start_end_constraint(j):
+            return j
 
-        constraint2 = self.prog.AddConstraint(
-            start_constraint,
-            lb=np.array(self.start_pos) - self.radius,
-            ub=np.array(self.start_pos) + self.radius,
-            vars=self.var_matrix)
+        self.solver_objects['start_pos_check'] = self.prog.AddConstraint(
+            start_end_constraint,
+            lb=(self.start_pos['arm'][:self.num_joints] - self.radius),
+            ub=(self.start_pos['arm'][:self.num_joints] + self.radius),
+            vars=self.var_matrix[:0].flatten())
 
-        def end_constraint(j):
-            return np.array([j[: -1]])
+        self.solver_objects['end_pos_check'] = self.prog.AddConstraint(
+            start_end_constraint,
+            lb=(self.end_pos['arm'][:self.num_joints] - self.radius),
+            ub=(self.end_pos['arm'][:self.num_joints] + self.radius),
+            vars=self.var_matrix[:-1].flatten())
 
-        constraint3 = self.prog.AddConstraint(
-            end_constraint,
-            lb=np.array(self.end_pos) - self.radius,
-            ub=np.array(self.end_pos) + self.radius,
-            vars=self.var_matrix)
+            # print('end pos: ', self.end_pos['arm'][:self.num_joints])
+        print('Start variables: ', self.var_matrix[:,0].flatten())
+        print('End variables: ', self.var_matrix[:,-1].flatten())
+        print('Lower bound for start: ', (self.start_pos['arm'][:self.num_joints] - self.radius))
+        print('Upper bound for start: ', (self.start_pos['arm'][:self.num_joints] + self.radius))
+        print('Lower bound for end: ', (self.end_pos['arm'][:self.num_joints] - self.radius))
+        print('Upper bound for end: ', (self.end_pos['arm'][:self.num_joints] + self.radius))
 
         #self.prog.SetInitialGuess(self.var_matrix, self.guess_matrix)
 
-        def optimize():
-            result = Solve(self.prog)
-            print(f"Is optimization successful? {result.is_success()}")
-            print(f"Solution to x: {result.GetSolution(j)}")
-            print(f"optimal cost: {result.get_optimal_cost()}")
-            return np.array([j[: -1]])
+    def optimize(self):
+        wait_for_user("Press enter to begin planning")
+        result = Solve(self.prog)
 
-        optimal_traject = optimize()
+        return result, self.var_matrix
+        # print(f"Is optimization successful? {result.is_success()}")
+
+        # if not result.is_success():
+        #     raise ValueError('SOLUTION NOT FOUND!')
+        # print(f"Solution to x: {result.GetSolution(self.var_matrix)}")
+        # print(f"optimal cost: {result.get_optimal_cost()}")
+        # return self.var_matrix
+
+        # optimal_traject = optimize()
 
 
 
@@ -112,7 +166,7 @@ add_spam_box = lambda world, **kwargs: add_ycb(world, 'potted_meat_can', **kwarg
 
 def import_trajectory_parameters(filename):
     with open(filename,  'r') as file:
-        chars = '#[() '
+        chars = '#[()] '
         reader = csv.reader(file)
         var_start_list = []
         for i, row in enumerate(reader):
@@ -131,19 +185,19 @@ def import_trajectory_parameters(filename):
                 arm_goal_angles = []
 
                 for element in row:
-                    arm_goal_angles.append(element.strip(chars))
+                    arm_goal_angles.append(float(element.strip(chars)))
 
             else:
                 row = [float(x) for x in row]
                 var_start_list.append(row)
 
     start_pos = {
-        'arm':  arm_start_angles,
-        'base': base_pos
+        'arm':  np.array(arm_start_angles),
+        'base': np.array(base_pos)
     }
     end_pos = {
-        'arm': arm_goal_angles,
-        'base': base_pos
+        'arm': np.array(arm_goal_angles),
+        'base': np.array(base_pos)
     }
 
     var_start_matrix = np.array(var_start_list)
@@ -165,28 +219,33 @@ if __name__ == "__main__":
     # }
     start_pos, end_pos, guess_matrix = import_trajectory_parameters('traj_opt_data.csv')
 
-    print("Starting the base at ", start_pos['base'], " and the arm at ", start_pos['arm'])
-    if end_pos['arm']:
-        print("Planning for arm movement to the goal: ", end_pos['arm'])
+    traj_solver = Solver(start_pos, end_pos, guess_matrix)
 
-    wait_for_user("Press enter to begin planning")
+    # print("Starting the base at ", start_pos['base'])
+    # print("Starting the arm at ", start_pos['arm'])
+    # if end_pos['arm'].size > 0:
+    #     print("Planning for arm movement to the goal: ", end_pos['arm'])
 
-    #TODO: solve for the optimal trajectory
-    # optimal_trajectory = solve()
+    result, var_matrix = traj_solver.optimize()
 
-    if optimal_trajectory:
-        wait_for_user("Solution found! Press enter to begin visualization")
-    else:
-        raise ValueError("No optimal solution found!")
+    print(f"Solution joint angles: {result.GetSolution(var_matrix)}")
+    
+    if not result.is_success():
+        raise ValueError("UNABLE TO FIND SOLUTION!!")
 
-    world = create_world(use_gui=True) #Create the world to visualize the optimized trajectory
+    # if optimal_trajectory:
+    #     wait_for_user("Solution found! Press enter to begin visualization")
+    # else:
+    #     raise ValueError("No optimal solution found!")
 
-    #Position robot at the starting point and the arm in the starting positions in the world
-    set_joint_positions(world.robot, world.base_joints, start_pos['base'])
-    set_joint_positions(world.robot, world.arm_joints, start_pos['arm'])
+    # world = create_world(use_gui=True) #Create the world to visualize the optimized trajectory
 
-    for conf in optimal_trajectory:
-        set_joint_positions(world.robot, world.arm_joints, conf)
-        time.sleep(0.05)
+    # #Position robot at the starting point and the arm in the starting positions in the world
+    # set_joint_positions(world.robot, world.base_joints, start_pos['base'])
+    # set_joint_positions(world.robot, world.arm_joints, start_pos['arm'])
 
-    wait_for_user('Visualization complete! Press enter to end')
+    # for conf in optimal_trajectory:
+    #     set_joint_positions(world.robot, world.arm_joints, conf)
+    #     time.sleep(0.05)
+
+    # wait_for_user('Visualization complete! Press enter to end')
