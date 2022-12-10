@@ -10,7 +10,21 @@
 
 ## Introduction 
 
-The objective of this project was to implement the 
+The objective of this project was to implement activity planning, motion planning and trajectory optimization for a robot (the "Franka-Carter" - a Franka arm mounted on a carter mobile base) to enable it to accomplish pick and place tasks involving two objects - a sugar box and a potted meat can. 
+
+Specifically, there were 2 tasks the robot had to accomplish: 
+1. Locate the sugar box and place it on a nearby countertop 
+2. Locate the potted meat can and place it in the red drawer
+
+The starting position of the robot and objects in the environment is shown in the left side image below and the desired end position of the robot and environment is shown in the right side image below.
+
+![Initial Environmental Positions](readme_material/initial_world.png){width=20}
+
+This writeup begins by describing the implementation of activity planning where the sequence of activities required to accomplish both tasks is generated. 
+
+The next section describes our implementation of motion planning where the motion paths of the base and arm that are needed to accomplish each activity in the generated activity plan is determined. 
+
+Finally, the last section describes our implementation of trajectory optimization where an optimized trajectory of the robot arm is generated using a non-linear constrained optimization problem formulation.
 
 ## Part 1: Activity Planning ##
 
@@ -58,6 +72,8 @@ We start with an initial fact layer. We expand our actions in the action layer w
 Previously we were also creating connections to facts that were carried over by the no-op. This was causing us to have way to many fact to action connections as we worked backward through the RPG. This resulted in our fast forward heuristic value being way to high for any given fact. 
 
 ## Part 2: Motion Planning
+
+### Overview
 
 ### Assumptions ###
 A key assumption that we made is that when the end effector of the arm enters within the goal radius of an object it is trying to reach, the object is simply attached to the arm. The object then moves jointly with the end effector of the arm until the object is released. In this way we don't simulate the gripping dynamics of the robot arm. The arm also does not need to move to within a distance of zero from the object in order to grab it since the task will be flagged as complete as soon as the arm enters a user defined radius around the object. 
