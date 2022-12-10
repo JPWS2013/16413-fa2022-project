@@ -115,7 +115,7 @@ A video of the working planner (without collision checking along path, just coll
 
 <!-- <img src="readme_material/robot_planning_12-10.gif" width="900"> -->
 <video width="540" controls>
-  <source src="readme_material/robot_planning_12-10.mov" type="video/mov">
+  <source src="readme_material/robot_planning_12-10.mov" type="video/mp4">
 </video>
 
 ### Challenges Faced ###
