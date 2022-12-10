@@ -90,21 +90,22 @@ To integrate the activity planner and the motion planner, we also implemented an
 5. Once all activities have been planned, the execution engine then visualizes the entire motion plan
 
 The key files for this part are:
-* The execution engine is defined in run_project.py located in the top-level folder
-* The motion planner is defined in MotionPlanner/RRT.py
+* The execution engine is defined in ```run_project.py``` located in the top-level folder
+* The motion planner is defined in ```MotionPlanner/RRT.py```
 
 ### Assumptions ###
 Our implementation of the motion planner and execution engine makes the following assumptions:
-1. We assume that the base is holonomic and therefore base only needs to either move in a straight line from start to end position or to rotate from one heading to another. Thus, our motion planner only samples (x,y) positions and the heading of the robot is determined based on the direction of travel needed to get from (x_1, y_1) to (x_2, y_2) for each pair of waypoints in the path.
-2. We assume that the kitchen furniture and appliances (cabinets, countertops, etc) will not change dimensions or location from those given at the start of this project. Based on this assumption, the following hard-coded values exist in our code:
+1. We assume that the **<u>base is holonomic</u>** and therefore base only needs to either move in a straight line from start to end position or to rotate from one heading to another. Thus, our motion planner only samples (x,y) positions and the heading of the robot is determined based on the direction of travel needed to get from (x_1, y_1) to (x_2, y_2) for each pair of waypoints in the path.
+2. We assume that the **<u>kitchen furniture and appliances will not change dimensions or location </u>** from those given at the start of this project. Based on this assumption, the following hard-coded values exist in our code:
     * The x-position of all base goal locations is hardcoded to be x=0.7
     * To avoid infeasible plans occurring around the red drawer area, all goal locations with "indigo" in the name have hardcoded base goal locations of (0.7, 0.55)
     * When placing the sugar box down on the countertop, the target x-position is hardcoded to be +0.3m of the center point of the counter top and the target y-position is hardcoded to be +0.3m of the center point of the countertop
-    <!-- * When placing the potted meat can down on the countertop, the  -->
-3. We assume a hard-coded goal position to park the arm when retrieving or placing objects. This is defined by the parked joint angle for each of the 7 arm joints.
-4. We assume that no friction is available in the environment and we therefore ignore the gripping dynamics of the robot arm. Thus, when the end effector enters within the goal radius of an object it is trying to grip, the object is simply attached to the arm. The object then moves jointly with the end effector of the arm until the object is released.
-5. Basd on this same assumption, when the end effector enters the goal radius of the drawer handle, the arm simply moved by a fixed amount in the positive or negative x-direction to open or close the drawer respectively. At each time step, the drawer position is then set to equal the amount that the arm moved in that time step.
-6. We assume that the drawer has a fixed length that will not change. Thus, in our code, the arm opens the drawer by a hard-coded distance of 0.35
+    <!-- * When placing the potted meat can down on the countertop, the position is hardcoded to be ???  -->
+3. We assume a **<u>hard-coded goal position to park the arm </u>** when retrieving or placing objects. This is defined by the parked joint angle for each of the 7 arm joints.
+4. We assume that we can **<u>ignore the gripping dynamics of the robot arm </u>**. Thus, our code does the following for gripping objects and opening/closing the drawer 
+    * When the end effector enters within the goal radius of an object it is trying to grip, the object is simply attached to the arm. The object then moves jointly with the end effector of the arm until the object is released.
+    * When the end effector enters the goal radius of the drawer handle, the arm simply moved by a fixed amount in the positive or negative x-direction to open or close the drawer respectively. At each time step, the drawer position is then set to equal the amount that the arm moved in that time step.
+6. We assume that the **<u>drawer has a fixed length that will not change </u>**. Thus, in our code, the arm opens the drawer by a hard-coded distance of 0.35
 
 ### Files and Motion Planner Implemented ###
 
