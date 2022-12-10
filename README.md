@@ -3,8 +3,8 @@
 
 ## Contents ##
 1. [Introduction](#Introduction)
-2. [Part 1: Activity Planning](#Part-1:-Activity-planning)
-3. [Part 2: Motion Planning](#Part-2-Motion-Planning)
+2. [Part 1: Activity Planning](#Part-1-Activity-planning)
+3. [Part 2: Motion Planning](#Part-2--Motion-Planning)
 4. [Part 3: Trajectory Optimization](#Part-3-Trajectory-Optimization)
 
 
@@ -57,7 +57,7 @@ We start with an initial fact layer. We expand our actions in the action layer w
 
 Previously we were also creating connections to facts that were carried over by the no-op. This was causing us to have way to many fact to action connections as we worked backward through the RPG. This resulted in our fast forward heuristic value being way to high for any given fact. 
 
-## Part 2 Motion Planning
+## Part 2 - Motion Planning
 
 ### Assumptions ###
 A key assumption that we made is that when the end effector of the arm enters within the goal radius of an object it is trying to reach, the object is simply attached to the arm. The object then moves jointly with the end effector of the arm until the object is released. In this way we don't simulate the gripping dynamics of the robot arm. The arm also does not need to move to within a distance of zero from the object in order to grab it since the task will be flagged as complete as soon as the arm enters a user defined radius around the object. 
