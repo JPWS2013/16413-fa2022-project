@@ -113,10 +113,7 @@ For our motion planner we decided to use RRT as our motion planner. We first run
 
 A video of the working planner (without collision checking along path, just collision checking at the start and end points):
 
-<!-- <img src="readme_material/robot_planning_12-10.gif" width="900"> -->
-<video width="540" controls>
-  <source src="readme_material/robot_planning_12-10.mov" type="video/mp4">
-</video>
+<img src="readme_material/robot-planning-12-10.gif" width="900">
 
 ### Challenges Faced ###
 
