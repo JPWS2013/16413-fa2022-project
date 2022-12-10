@@ -16,9 +16,11 @@ Specifically, there were 2 tasks the robot had to accomplish:
 1. Locate the sugar box and place it on a nearby countertop 
 2. Locate the potted meat can and place it in the red drawer
 
-The starting position of the robot and objects in the environment is shown in the left side image below and the desired end position of the robot and environment is shown in the right side image below.
+The starting position of the robot and objects in the environment is shown in the image below:
 
-![Initial Environmental Positions](readme_material/initial_world.png){width=20}
+<p align="center">
+<img src="readme_material/initial_world.png" width="70%">
+</p>
 
 This writeup begins by describing the implementation of activity planning where the sequence of activities required to accomplish both tasks is generated. 
 
