@@ -17,7 +17,7 @@ class Solver:
         self.solver_objects = dict()
         self.radius = radius
         self.guess_matrix = np.array(guess_matrix)
-        self.guess_matrix = self.guess_matrix[:1,:]
+        self.guess_matrix = self.guess_matrix[:1,:2]
         # print("shape of guess matrix: ", self.guess_matrix.shape)
         # self.time_step = time_step
         # self.duration = duration
@@ -60,9 +60,9 @@ class Solver:
         
         # Set heuristic costs
         def cost_fun(j):
-            variable_array = j.reshape((self.num_joints, self.num_time_steps))
+            variable_array = j.reshape((1, 2))
             total_cost = 0
-            for i in range(1, self.num_time_steps):
+            for i in range(1, 2):
                 subtraction_vec = abs(variable_array[:, i] - variable_array[:, i-1])
                 total_cost += np.sum(subtraction_vec)
 
