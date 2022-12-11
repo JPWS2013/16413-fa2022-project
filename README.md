@@ -140,13 +140,17 @@ The following are the key functions performed by the execution engine to integra
     * <ins>For a placein or placeon action</ins>, calculate the final pose to place the object in the drawer or on the countertop based on the mappings and the actual grasp height measured earlier. The motion planner is then used to move the arm (and object) back to the hardcoded arm park position before proceeding to the next action
 3. ```execute_action```: Converting each activity in the activity plan into a defined numerical end goal for the motion planner to generate the motion plan
 
-### GIF of Robot Executing Plan ###
+### GIF of Robot Executing the Plan ###
 A video of the working planner (without collision checking along path, just collision checking at the start and end points):
 
 <img src="readme_material/robot-planning-12-10.gif" width="900">
 
+*Note: the above GIF shows the robot placing the potted meat can on the drawer handle instead of in the drawer. To fix this, we recognize that our code needs an additional offset factor in the x-direction from the drawer handle when calculating the goal position for placing the potted meat can in the drawer. However, we ran out of time to implement this offset factor and record a new video.*
+
 ### Challenges Faced ###
 
 A key challenge we faced was dealing with the format of our samples when sampling for our RRT* planner. The samples provided from functions within the utils.py file in ss-pybullet gave us a sample in the format of joint angles for each joint along the arm rather than cartesian coordinates of the end effector. We at first tried to find a way to convert this sample format to a cartesian point, but utlimatley, we were able to make the motion planner work using the original format of the sampler output. 
+
+Another key challenge we faced was figuring out how to perform efficient collision checking between links of the robot to make sure that the robot could not collide with itself. Although we could perform pairwise link collision checking, we found that pybullet's pairwise link collision checking function was very slow. Since our existing planner didn't seem to have too many problems with the robot colliding into itself, we decided not to keep trying to implement this aspect of collision checking. As such, this is a significant limitation of our implementation - that there is the possibility that a motion plan for the arm is generated that causes the arm to collide with itself.
 
 ## Part 3: Trajectory Optimization
