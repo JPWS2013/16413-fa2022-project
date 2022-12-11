@@ -60,8 +60,8 @@ class Solver:
             return j
 
         for i in range(self.num_joints):
-            print('lb for ', i, ': ', self.lower_limits_matrix[i,:])
-            print('ub for ', i, ': ', self.upper_limits_matrix[i,:])
+            # print('lb for ', i, ': ', self.lower_limits_matrix[i,:])
+            # print('ub for ', i, ': ', self.upper_limits_matrix[i,:])
 
             self.solver_objects['joint_limit_'+str(i)] = self.prog.AddConstraint(
                 joint_constraint,
@@ -69,7 +69,7 @@ class Solver:
                 ub=self.upper_limits_matrix[i,:],
                 vars=self.var_matrix[i,:].flatten())
 
-            print("Constraint for joint", i, ':', self.solver_objects['joint_limit_'+str(i)])
+            # print("Constraint for joint", i, ':', self.solver_objects['joint_limit_'+str(i)])
 
         def start_constraint(j):
             # print("Variable in start constraint: ", j)
