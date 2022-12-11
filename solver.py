@@ -14,14 +14,10 @@ UNIT_POSE2D = (0., 0., 0.)
 
 class Solver:
     def __init__(self, start_pos, end_pos, guess_matrix, radius = 0.03):
-    #def __init__(self, guess_matrix, time_step = 0.05, duration = 5, radius = 0.05, start_pos = np.array([0.12, -0.5698, 0, -2.8106, -0.0003, 3.0363, 0.7411]), end_pos = np.array([-0.010923567328455445, 0.3756526760797238, -0.7289112485142143, -2.2175170144491707, 2.4638620692328344, 1.9346847840915486, -1.770862013075821])):
         self.solver_objects = dict()
         self.radius = radius
         self.guess_matrix = np.array(guess_matrix)
         self.guess_matrix = self.guess_matrix[:7,:10]
-        # print("shape of guess matrix: ", self.guess_matrix.shape)
-        # self.time_step = time_step
-        # self.duration = duration
         self.prog = MathematicalProgram()
         self.num_rows, self.num_cols = self.guess_matrix.shape
         self.num_time_steps = self.num_cols
@@ -31,7 +27,7 @@ class Solver:
         # print('var matrix: ', self.var_matrix)
         self.start_pos = start_pos
         self.end_pos = end_pos
-        self.upper_joint_limits, self.lower_joint_limits = zip(*[
+        self.lower_joint_limits, self.upper_joint_limits = zip(*[
             (-2.8973, 2.8973), #panda_joint1 limit
             (-1.7628, 1.7628), #panda_joint2 limit
             (-2.8973, 2.8973), #panda_joint3 limit
@@ -42,13 +38,6 @@ class Solver:
         ])
         self.upper_joint_limits = np.array(self.upper_joint_limits)[:self.num_joints]
         self.lower_joint_limits = np.array(self.lower_joint_limits)[:self.num_joints]
-
-        # print("Upper joint limits: ", self.upper_joint_limits)
-        # print("Lower joint limits: ", self.lower_joint_limits)
-
-        # print("upper_joint_limits: ", self.upper_joint_limits)
-        # print("lower_joint_limits: ", self.lower_joint_limits)
-
 
         self.upper_limits_matrix = np.tile(self.upper_joint_limits.reshape(-1,1), self.num_time_steps)
         self.lower_limits_matrix = np.tile(self.lower_joint_limits.reshape(-1,1), self.num_time_steps)
@@ -70,22 +59,21 @@ class Solver:
         self.solver_objects['cost'] = self.prog.AddCost(cost_fun, vars=self.var_matrix.flatten())
 
         # Return separate joint limit checkers, one for each joint over all time
-        # def joint_constraint(j):
-        #     return j
-        #     #return np.array([j[1 :], j[2 :], j[3 :], j[4 :], j[5 :], j[6 :], j[7 :]])
+        def joint_constraint(j):
+            # print("Running  joint constraint")
+            return j
 
-        # for i in range(self.num_joints):
-        #     # print('lb for ', i, ': ', self.lower_limits_matrix[i,:])
-        #     # print('ub for ', i, ': ', self.upper_limits_matrix[i,:])
+        for i in range(self.num_joints):
+            print('lb for ', i, ': ', self.lower_limits_matrix[i,:])
+            print('ub for ', i, ': ', self.upper_limits_matrix[i,:])
 
-        #     self.solver_objects['joint_limit_'+str(i)] = self.prog.AddConstraint(
-        #         joint_constraint,
-        #         # lb=np.array([np.full((1, self.num_time_steps), -2.8973), np.full((1, self.num_time_steps), -1.7628), np.full((1, self.num_time_steps), -2.8973), np.full((1, self.num_time_steps), -3.0718), np.full((1, self.num_time_steps), -2.8973), np.full((1, self.num_time_steps), -0.0175), np.full((1, self.num_time_steps), -2.8973)]),
-        #         # ub=np.array([np.full((1, self.num_time_steps), 2.8973), np.full((1, self.num_time_steps), 1.7628), np.full((1, self.num_time_steps), 2.8973), np.full((1, self.num_time_steps), -0.0698), np.full((1, self.num_time_steps), 2.8973), np.full((1, self.num_time_steps), 3.7525), np.full((1, self.num_time_steps), 2.8973)]),
-        #         # vars=self.var_matrix)
-        #         lb=self.lower_limits_matrix[i,:],
-        #         ub=self.upper_limits_matrix[i,:],
-        #         vars=self.var_matrix[i,:].flatten())
+            self.solver_objects['joint_limit_'+str(i)] = self.prog.AddConstraint(
+                joint_constraint,
+                lb=self.lower_limits_matrix[i,:],
+                ub=self.upper_limits_matrix[i,:],
+                vars=self.var_matrix[i,:].flatten())
+
+            print("Constraint for joint", i, ':', self.solver_objects['joint_limit_'+str(i)])
 
         def start_constraint(j):
             # print("Variable in start constraint: ", j)
@@ -210,9 +198,9 @@ if __name__ == "__main__":
     traj_solver = Solver(start_pos, end_pos, guess_matrix)
 
     # print("Starting the base at ", start_pos['base'])
-    # print("Starting the arm at ", start_pos['arm'])
-    # if end_pos['arm'].size > 0:
-    #     print("Planning for arm movement to the goal: ", end_pos['arm'])
+    print("Starting the arm at ", start_pos['arm'])
+    if end_pos['arm'].size > 0:
+        print("Planning for arm movement to the goal: ", end_pos['arm'])
 
     result, var_matrix = traj_solver.optimize()
 
