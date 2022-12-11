@@ -141,7 +141,6 @@ The following are the key functions performed by the execution engine to integra
 3. ```execute_action```: Converting each activity in the activity plan into a defined numerical end goal for the motion planner to generate the motion plan
 
 ### GIF of Robot Executing the Plan ###
-A video of the working planner (without collision checking along path, just collision checking at the start and end points):
 
 <img src="readme_material/robot-planning-12-10.gif" width="900">
 
