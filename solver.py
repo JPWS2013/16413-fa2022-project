@@ -1,23 +1,24 @@
 from pydrake.solvers import MathematicalProgram, Solve
 import numpy as np
-import os, sys, csv
+import os, sys, csv, time
 
 SUBMODULE_PATH= os.path.abspath(os.path.join(os.getcwd(), 'padm-project-2022f'))
 sys.path.append(SUBMODULE_PATH)
 sys.path.extend(os.path.join(SUBMODULE_PATH, d) for d in ['pddlstream', 'ss-pybullet'])
 
 from src.world import World
+from src.utils import COUNTERS, compute_surface_aabb, name_from_type
 from pybullet_tools.utils import set_pose, Pose, Point, Euler, multiply, get_pose, get_point, create_box, set_all_static, WorldSaver, create_plane, COLOR_FROM_NAME, stable_z_on_aabb, pairwise_collision, elapsed_time, get_aabb_extent, get_aabb, create_cylinder, set_point, get_function_name, wait_for_user, dump_world, set_random_seed, set_numpy_seed, get_random_seed, get_numpy_seed, set_camera, set_camera_pose, link_from_name, get_movable_joints, get_joint_name, CIRCULAR_LIMITS, get_custom_limits, set_joint_positions, interval_generator, get_link_pose, interpolate_poses, get_all_links, get_link_names, get_link_inertial_pose, body_from_name, get_pose, get_link_name, get_bodies, dump_body, create_attachment, get_body_name, get_joint_positions, get_position_waypoints, get_quaternion_waypoints, quat_from_euler, euler_from_quat, get_joint_position, set_joint_position, get_joint_limits, get_joint_names, get_joints, body_collision
 
 UNIT_POSE2D = (0., 0., 0.)
 
 class Solver:
-    def __init__(self, start_pos, end_pos, guess_matrix, radius = 0.05):
+    def __init__(self, start_pos, end_pos, guess_matrix, radius = 0.03):
     #def __init__(self, guess_matrix, time_step = 0.05, duration = 5, radius = 0.05, start_pos = np.array([0.12, -0.5698, 0, -2.8106, -0.0003, 3.0363, 0.7411]), end_pos = np.array([-0.010923567328455445, 0.3756526760797238, -0.7289112485142143, -2.2175170144491707, 2.4638620692328344, 1.9346847840915486, -1.770862013075821])):
         self.solver_objects = dict()
         self.radius = radius
         self.guess_matrix = np.array(guess_matrix)
-        self.guess_matrix = self.guess_matrix[:1,:2]
+        self.guess_matrix = self.guess_matrix[:7,:10]
         # print("shape of guess matrix: ", self.guess_matrix.shape)
         # self.time_step = time_step
         # self.duration = duration
@@ -54,19 +55,20 @@ class Solver:
         
         # print('upper limits: ', self.upper_limits_matrix)
         # print('lower limits: ', self.lower_limits_matrix)
-        flattened_var_matrix = self.var_matrix.flatten()
-        print('Re-shaped var matrix: ', flattened_var_matrix.reshape((self.num_joints, self.num_time_steps)))
-        print('sliced variable array', self.var_matrix[:,1] - self.var_matrix[:0])
+        # flattened_var_matrix = self.var_matrix.flatten()
+        # print('Re-shaped var matrix: ', flattened_var_matrix.reshape((self.num_joints, self.num_time_steps)))
+        # print('sliced variable array', self.var_matrix[:,1] - self.var_matrix[:0])
         
         # Set heuristic costs
         def cost_fun(j):
-            variable_array = j.reshape((1, 2))
+            variable_array = j.reshape((7, 10))
+            # print('Variable array in cost func: ', variable_array)
             total_cost = 0
-            for i in range(1, 2):
+            for i in range(1, 10):
                 subtraction_vec = abs(variable_array[:, i] - variable_array[:, i-1])
                 total_cost += np.sum(subtraction_vec)
 
-            print("Total cost: ", total_cost)
+            # print("Total cost: ", total_cost)
             return total_cost
 
         self.solver_objects['cost'] = self.prog.AddCost(cost_fun, vars=self.var_matrix.flatten())
@@ -89,20 +91,33 @@ class Solver:
         #         ub=self.upper_limits_matrix[i,:],
         #         vars=self.var_matrix[i,:].flatten())
 
-        def start_end_constraint(j):
+        def start_constraint(j):
+            # print("Variable in start constraint: ", j)
+            return j
+        
+        def end_constraint(j):
+            # print("Variable in end constraint: ", j)
             return j
 
         self.solver_objects['start_pos_check'] = self.prog.AddConstraint(
-            start_end_constraint,
+            start_constraint,
             lb=(self.start_pos['arm'][:self.num_joints] - self.radius),
             ub=(self.start_pos['arm'][:self.num_joints] + self.radius),
-            vars=self.var_matrix[:0].flatten())
+            # lb=np.array([0.3]),
+            # ub=np.array([1.5]),
+            vars=self.var_matrix[:,0].flatten())
+
+        # print("start constraint: ", self.solver_objects['start_pos_check'])
 
         self.solver_objects['end_pos_check'] = self.prog.AddConstraint(
-            start_end_constraint,
+            end_constraint,
             lb=(self.end_pos['arm'][:self.num_joints] - self.radius),
             ub=(self.end_pos['arm'][:self.num_joints] + self.radius),
-            vars=self.var_matrix[:-1].flatten())
+            # lb=np.array([1.4]),
+            # ub=np.array([2.1]),
+            vars=self.var_matrix[:,-1].flatten())
+
+        # print("end constraint: ", self.solver_objects['end_pos_check'])
 
             # print('end pos: ', self.end_pos['arm'][:self.num_joints])
         print('Start variables: ', self.var_matrix[:,0].flatten())
@@ -135,8 +150,8 @@ class Solver:
 
 def create_world(use_gui=False):
         
-        add_sugar_box = lambda world, **kwargs: self.add_ycb(world, 'sugar_box', **kwargs)
-        add_spam_box = lambda world, **kwargs: self.add_ycb(world, 'potted_meat_can', **kwargs)
+        add_sugar_box = lambda world, **kwargs: add_ycb(world, 'sugar_box', **kwargs)
+        add_spam_box = lambda world, **kwargs: add_ycb(world, 'potted_meat_can', **kwargs)
         
         np.set_printoptions(precision=3, suppress=True)
         world = World(use_gui=use_gui)
@@ -204,6 +219,15 @@ def import_trajectory_parameters(filename):
 
     return start_pos, end_pos, var_start_matrix
 
+def extract_path(sol_array):
+    path = list()
+
+    for joint_conf in sol_array.T:
+        path.append(tuple(joint_conf))
+
+    return path
+
+
 if __name__ == "__main__":
 
     #TODO: Initialize solver
@@ -228,24 +252,34 @@ if __name__ == "__main__":
 
     result, var_matrix = traj_solver.optimize()
 
-    print(f"Solution joint angles: {result.GetSolution(var_matrix)}")
+    print(f"Solution joint angles:\n {result.GetSolution(var_matrix)}")
+    print("Successful?", result.is_success())
+    print("Solver is: ", result.get_solver_id().name())
+    print('optimal cost = ', result.get_optimal_cost())
     
     if not result.is_success():
         raise ValueError("UNABLE TO FIND SOLUTION!!")
+    else: 
+        optimal_trajectory = extract_path(result.GetSolution(var_matrix))
 
-    # if optimal_trajectory:
-    #     wait_for_user("Solution found! Press enter to begin visualization")
-    # else:
-    #     raise ValueError("No optimal solution found!")
+    # print("Optimal trajectory: ", optimal_trajectory)
 
-    # world = create_world(use_gui=True) #Create the world to visualize the optimized trajectory
+    world = create_world(use_gui=True) #Create the world to visualize the optimized trajectory
 
-    # #Position robot at the starting point and the arm in the starting positions in the world
-    # set_joint_positions(world.robot, world.base_joints, start_pos['base'])
-    # set_joint_positions(world.robot, world.arm_joints, start_pos['arm'])
+    #Position robot at the starting point and the arm in the end positions in the world
+    set_joint_positions(world.robot, world.base_joints, end_pos['base'])
+    set_joint_positions(world.robot, world.arm_joints, end_pos['arm'])
 
-    # for conf in optimal_trajectory:
-    #     set_joint_positions(world.robot, world.arm_joints, conf)
-    #     time.sleep(0.05)
+    wait_for_user("Displaying end position. Press enter to continue")
 
-    # wait_for_user('Visualization complete! Press enter to end')
+    #Position robot at the starting point and the arm in the starting positions in the world
+    set_joint_positions(world.robot, world.base_joints, start_pos['base'])
+    set_joint_positions(world.robot, world.arm_joints, start_pos['arm'])
+
+    wait_for_user("Displaying start position. Press enter to visualize trajectory")
+
+    for conf in optimal_trajectory:
+        set_joint_positions(world.robot, world.arm_joints, conf)
+        time.sleep(1)
+
+    wait_for_user('Visualization complete! Press enter to end')
