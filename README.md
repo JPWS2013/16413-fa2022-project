@@ -89,6 +89,8 @@ To integrate the activity planner and the motion planner, we also implemented an
     * Store the generated motion plan for visualization later
 5. Once all activities have been planned, the execution engine then visualizes the entire motion plan
 
+This sequence of actions can be found in the ```run``` class method of the execution engine.
+
 The key files for this part are:
 * The execution engine is defined in ```run_project.py``` located in the top-level folder
 * The motion planner is defined in ```MotionPlanner/RRT.py```
@@ -101,11 +103,12 @@ Our implementation of the motion planner and execution engine makes the followin
     * To avoid infeasible plans occurring around the red drawer area, the robot is positioned in front of the stove for any interactions needed with the right-side countertop or drawers. To do this, all goal locations with "indigo" in the name have hardcoded base goal locations of (0.7, 0.55)
     * When placing the sugar box down on the countertop, the target x-position is hardcoded to be +0.3m of the center point of the counter top and the target y-position is hardcoded to be +0.3m of the center point of the countertop
     <!-- * When placing the potted meat can down on the countertop, the position is hardcoded to be ???  -->
-3. We assume a **<ins>hard-coded goal position to park the arm </ins>** when retrieving or placing objects. This is defined by the parked joint angle for each of the 7 arm joints.
-4. We assume that we can **<ins>ignore the gripping dynamics of the robot arm </ins>**. Thus, our code does the following for gripping objects and opening/closing the drawer 
+3. We also assume that **<ins>objects do not move or change dimensions </ins>**. Thus, the grasp poses (both (x,y,z) position and quaternion) for the sugar box and potted meat can are predetermined and hardcoded into the execution engine 
+4. We assume a **<ins>hard-coded goal position to park the arm </ins>** when retrieving or placing objects. This is defined by the parked joint angle for each of the 7 arm joints.
+5. We assume that we can **<ins>ignore the gripping dynamics of the robot arm </ins>**. Thus, our code does the following for gripping objects and opening/closing the drawer 
     * When the end effector enters within the goal radius of an object it is trying to grip, the object is simply attached to the arm. The object then moves jointly with the end effector of the arm until the object is released.
     * When the end effector enters the goal radius of the drawer handle, the arm simply moved by a fixed amount in the positive or negative x-direction to open or close the drawer respectively. At each time step, the drawer position is then set to equal the amount that the arm moved in that time step.
-5. We assume that the **<ins>drawer has a fixed length that will not change </ins>**. Thus, in our code, the arm opens the drawer by a hard-coded distance of 0.35
+6. We assume that the **<ins>drawer has a fixed length that will not change </ins>**. Thus, in our code, the arm opens the drawer by a hard-coded distance of 0.35
 
 ### Motion Planner Implementation ###
 
@@ -125,9 +128,17 @@ The following are the key functions performed or called by ```plan```:
 5. If all collision checks pass, the point is then added to the tree and the interpolated path generated during obstacle detection is stored together with the new point
 6. ```in_end_region``` and ```retrieve_path```: If the new point is within the goal region, the path from start to end is retreived. This is done by starting with the end point and prepending each set of interpolated paths to the path list until the start point is reached. Once done, the path list contains every interpolated point from the start to the end point and this path is then returned to the execution engine.
 
-### Execution Engine Implementation ###
+### Integrating the Activity Plan with the Motion Plan ###
 
-The execution engine integrates the activity planner 
+The following are the key functions performed by the execution engine to integrate the activity plan with the  motion plan:
+<!-- 1. ```create_world```: This function creates the simulation world and places the robot, sugar box and potted meat can at their start position. The execution engine calls this function on initialization to create the world that will be used for motion planning. Once all motion plans have been generated, the execution engine destroyes the world and creates a new copy of the world to use for visualizing the plan. -->
+1. ```create_maps```: This function creates a map of all kitchen location and object names into numeric goal positions for the robot arm or base. These mappings are used by the plan_action function (see below) to convert the location or object names that appear in each action to the (x,y) position or grasp pose that each name represents. Kitchen locations are mapped into (x,y) positions based on their location in the simulated world and subject to the assumptions listed above. Objects are mapped to grasp poses that are predetermined and hardcoded into the execution engine as stated in the assumptions above.
+2. ```plan_action```: This function is called for each action in the activity plan. In addition to using the mappings to convert location and object names to goal positions for the motion plannner, this function does the following for each action:
+    * <ins>For a move action</ins>, call the motion planner to create a motion path for just the base to reach the goal location
+    * <ins>For an open or close action</ins>, use the motion planner to move the arm into position to first grasp the drawer handle. Then, if opening the drawer, use the motion planner to move the arm either +0.35m (if opening) or -0.35m (if closing) in the x-direction to open or close the drawer. Once the drawer is opened or closed, use the motion planner to plan one more action in +0.1m in the x-direction to move away from the drawer handle before moving on to the next action
+    * <ins>For a grip action</ins>, use the motion planner to move the arm into the required grasp pose, then the actual grasp height of the end effector is measured. This is done so that the goal position to place the object can be modified to account for the actual grasp height of the end effector. The fingers on the end effector are then closed. The motion planner is then used to move the arm (and object) back to the hardcoded arm park position before proceeding to the next action
+    * <ins>For a placein or placeon action</ins>, calculate the final pose to place the object in the drawer or on the countertop based on the mappings and the actual grasp height measured earlier. The motion planner is then used to move the arm (and object) back to the hardcoded arm park position before proceeding to the next action
+3. ```execute_action```: Converting each activity in the activity plan into a defined numerical end goal for the motion planner to generate the motion plan
 
 A video of the working planner (without collision checking along path, just collision checking at the start and end points):
 
