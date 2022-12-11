@@ -42,7 +42,7 @@ class Solver:
         self.upper_limits_matrix = np.tile(self.upper_joint_limits.reshape(-1,1), self.num_time_steps)
         self.lower_limits_matrix = np.tile(self.lower_joint_limits.reshape(-1,1), self.num_time_steps)
         
-        # Set heuristic costs
+        # Set heuristic costs ##############################################
         def cost_fun(j):
             num_cols = int(j.shape[0]/7)
             variable_array = j.reshape((7, int(num_cols)))
@@ -54,9 +54,9 @@ class Solver:
 
         self.solver_objects['cost'] = self.prog.AddCost(cost_fun, vars=self.var_matrix.flatten())
 
+        # Set joint  limits constraint #####################################
         # Return separate joint limit checkers, one for each joint over all time
-        def joint_constraint(j):
-            # print("Running  joint constraint")
+        def return_var_matrix_fun(j):
             return j
 
         for i in range(self.num_joints):
@@ -64,31 +64,24 @@ class Solver:
             # print('ub for ', i, ': ', self.upper_limits_matrix[i,:])
 
             self.solver_objects['joint_limit_'+str(i)] = self.prog.AddConstraint(
-                joint_constraint,
+                return_var_matrix_fun,
                 lb=self.lower_limits_matrix[i,:],
                 ub=self.upper_limits_matrix[i,:],
                 vars=self.var_matrix[i,:].flatten())
-
             # print("Constraint for joint", i, ':', self.solver_objects['joint_limit_'+str(i)])
 
-        def start_constraint(j):
-            # print("Variable in start constraint: ", j)
-            return j
-        
-        def end_constraint(j):
-            # print("Variable in end constraint: ", j)
-            return j
-
+        # Set constraint on starting position ##############################
         self.solver_objects['start_pos_check'] = self.prog.AddConstraint(
-            start_constraint,
+            return_var_matrix_fun,
             lb=(self.start_pos['arm'][:self.num_joints] - self.radius),
             ub=(self.start_pos['arm'][:self.num_joints] + self.radius),
             vars=self.var_matrix[:,0].flatten())
 
         # print("start constraint: ", self.solver_objects['start_pos_check'])
 
+        # Set constraint on ending position ################################
         self.solver_objects['end_pos_check'] = self.prog.AddConstraint(
-            end_constraint,
+            return_var_matrix_fun,
             lb=(self.end_pos['arm'][:self.num_joints] - self.radius),
             ub=(self.end_pos['arm'][:self.num_joints] + self.radius),
             vars=self.var_matrix[:,-1].flatten())
@@ -226,6 +219,6 @@ if __name__ == "__main__":
 
     for conf in optimal_trajectory:
         set_joint_positions(world.robot, world.arm_joints, conf)
-        time.sleep(1)
+        time.sleep(0.5)
 
     wait_for_user('Visualization complete! Press enter to end')
