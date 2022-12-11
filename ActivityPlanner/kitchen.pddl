@@ -34,7 +34,7 @@
   
   (:action grip
     :parameters (?a - arm ?i - item ?l - location)
-    :precondition (and (empty ?a) (free ?i) (armat ?a ?l) (itemat ?i ?l) ) ; Might need to check if location is opened first before gripping (e.g. if we're taking something out of a drawer)
+    :precondition (and (empty ?a) (free ?i) (armat ?a ?l) (itemat ?i ?l) ) ; TODO: Might need to check if location is opened first before gripping (e.g. if we're taking something out of a drawer)
     :effect (and (gripped ?i) (not (itemat ?i ?l)) (not (free ?i)) (not (empty ?a)) )
   )
   

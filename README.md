@@ -31,47 +31,56 @@ Finally, the last section describes our implementation of trajectory optimizatio
 ## Part 1: Activity Planning
 
 ### Domain Assumptions ###
+Our implementation of activiity planning makes the following assumptions:
+1. We assume that **<ins>items to be gripped will always be directly accessible</ins>** (e.g. no need to first open a drawer/cabinet before gripping an item). Based on this assumption, the way our grip action is defined will theoretically allow an item to be gripped even if the drawer is closed, which is not a realistic behavior. We could adjust our defined predicates to avoid this problem but have chosen not to do so since the tasks defined in the project do not require an item to be retrieved from the drawer.
+2. We assume that **<ins>the red drawer is the only location that items need to be stored in </ins>**. Based on this assumption, our problem file only defines the red drawer to be openable. If items need to be stored in other cabinets/draweres, our current problem file would not support that and would need to be modified. 
+3. We assume that **<ins> an item has no associated location if it is gripped</ins>** because its location is the same as the location of the robot arm, making it redundant to keep track of the item's location separately from the robot arm when the item is gripped.
+4. We assume that **<ins> actions involving grasping/releasing objects includes movement of the arm into the grasp pose</ins>**
 
-We have the following types in our domain:
+### Key Files and Functions ###
 
-- location: Represents locations in the kitchen.
-- item: Represents items in the kitchen.
-- arm : Representsthe robotic arm.
+The key files for activity planning can be found in the ```ActivityPlanner``` Folder. They are:
+1. ```kitchen.pddl```: This file defines the kitchen domain based on the simulated world provided for this project. The main locations, objects and possible actions are all defined in this file.
+2. ```pb1.pddl```: This file defines the problem to be solved by the activity planner. Among other things, the initial and goal states are defined in this file.
+3. ```ff_planner.py```: This file defines the functions that are needed to carry out activity planning. The top-level function for activity planning is the enforced_hill_climb function.
 
-We have the following predicates in our domain:
+The domain file ```kitchen.pddl``` defines the following types, predicates and actions:
+1. We have the following types in our domain:
 
-- opened: Records if a location is open or not (this predicate along with closed is used for locations that are drawers).
-- closed: Records if a location is closed or not.
-- openable: Records if a location can be opened. This differentiates between counters and drawers.
-- gripped: Records if an item is being gripped by the robot arm.
-- free: Records if the item is not being gripped by the robot arm.
-- itemat: Records what location a specific item is at.
-- itemin: Records if an item is in an openable location. 
-- armat: Records what location the arm is at.
-- empty: Records if the arm is holding an item.
-- surface: Records if a location is a surface or a cabinet.
+    - ```location```: Represents locations in the kitchen.
+    - ```item```: Represents items in the kitchen.
+    - ```arm```: Representsthe robotic arm.
 
-We have the following actions in our domain:
+2. We have the following predicates in our domain:
 
-- open: This opens a location. It requires the arm to be at the location and empty and for the location to be openable and closed. It makes the location opened and not closed.
-- close: This closes a location. It requires the arm to be at the location and empty and for the location to be openable and open. It makes the location closed and not open.
-- grip: This causes an item to be gripped by the arm. The arm must be empty, the item must be free, and the arm and item must be at the same location. It causes the arm to be not empty. It causes the item to be not free and gripped. It also causes the item to not be in the location anymore. This is because if the item is gripped, we assume it is in the same location as the arm. This means it is redundant to keep track of both locations.
-- placein: This places the object in an openable location. It requires the item to be gripped, the arm at the location, and the location to be opened. This makes the the arm empty. It also makes the item free, not gripped, and makes itemat and itemin the location. We make both itemat and itemin satisified since itemat is the main predicate to keep track of an item's 
-- location. We use itemin as a stronger condition to keep track of items in openable locations. 
-- placeon: This places the object at a non- openable location. It requires the item to be gripped, the location to be a surface, and the arm at the location. This makes the the arm empty. It also makes the item free, not gripped, and makes itemat the location. 
-- move: This moves the arm from one location to another. The arm must be in the start location. It causes the arm to be at the end location and not at the start location.
+    - ```opened```/```closed```: Records if a location (e.g. a drawer) is opened/closed or not
+        - ```openable```: Records if a location can be opened. This differentiates between counters and drawers
+    - ```gripped```: Records if an item is being gripped by the robot arm
+    - ```free```: Records if the item is not being gripped by the robot arm
+    - ```itemat```: Records what location a specific item is at
+    - ```itemin```: Records if an item is in an openable location 
+    - ```armat```: Records what location the arm is at
+    - ```empty```: Records if the arm is holding an item
+    - ```surface```: Records if a location is a surface or not
 
-It is worth noting that the way we have defined the grip action will allow an item to be gripped even if the drawer is closed, which is not a realistic behavior. We could adjust our defined predicates to avoid this problem but have chosen not to do so since the tasks defined in the project do not require an item to be retrieved from the drawer. We are therefore assuming that this definition of actions will not be applied to a problem in which items will need to be retrieved from the drawer.
+3. We have the following actions in our domain:
+
+    - ```open```: This opens a location, provided that the arm is empty and at the location and the location is openable and closed
+    - ```close```: This closes a location, provided that the arm is at the location and empty and the location is openable and open
+    - ```grip```: This causes an item to be gripped by the arm, provided that the arm is empty, the item is free and the arm and item are at the same location. The arm must be empty, the item must be free, and the arm and item must be at the same location
+    - ```placein```: This places the object in an openable location, provided that the item is gripped, the arm is at the location, and the location is opened.
+    - ```placeon```: This places the object at a non-openable location, provided that the item is gripped, the location is a surface and the arm is at the location
+    - ```move```: This moves the arm from one location to another, provided that the arm is in the start location
 
 
-### Plan Generation ###
-
+### Generating the Activity Plan ###
+The enforced_hill_climb function in ```ff_planner.py``` takes the the current state (as defined in ```pb1.pddl```), the PDDL parser object (initialized outside of the function) and the set of grounded actions and performs the following key functions:
 We start with an initial fact layer. We expand our actions in the action layer which have their preconditions satisfied by our current fact layer. We then use the action layer to generate new facts from the effects of the actions in the action layer. We then do a union of the new facts with the previous fact layer in order to carry over new facts and facts resulting from no-op. We carry out this process until the goal appears in our fact layer. To keep track of the connections between facts and actions, at each fact layer we create a dictionary. The keys in the dictionary are made up of the facts in the layer while the entries associated with each key are the actions that the fact resulted from. Critically, this is only carried out for facts that were not in the previous fact layer i.e. not facts that were carried over by the no-op. Using this strategy we can follow the RPG backwards from a fact in order to count actions for the fast forward heuristic value. We then use the heuristic value to inform an Enforced Hill Climb algorithm. At each action selection we look for a state with a decreasing heuristic value. If we cannot find a decreasing heuristic value, BFS is used to determine the next action.
 
 
 ### Challenges Faced ###
 
-Previously we were also creating connections to facts that were carried over by the no-op. This was causing us to have way to many fact to action connections as we worked backward through the RPG. This resulted in our fast forward heuristic value being way to high for any given fact. 
+One of the key challenges we faced was that our FF heuristic planner was creating connections to facts that were carried over by the "no-op". This was causing us to have way too many fact to action connections as we worked backward through the RPG. This resulted in our fast forward heuristic value being way to high for any given fact. 
 
 ## Part 2: Motion Planning
 
