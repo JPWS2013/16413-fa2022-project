@@ -55,10 +55,12 @@ class Solver:
         
         # Set heuristic costs
         def cost_fun(j):
-            variable_array = j.reshape((7, 10))
+            num_cols = int(j.shape[0]/7)
+            variable_array = j.reshape((7, int(num_cols)))
+            # print("Number of time points: ", num_cols)
             # print('Variable array in cost func: ', variable_array)
             total_cost = 0
-            for i in range(1, 10):
+            for i in range(1, num_cols):
                 subtraction_vec = abs(variable_array[:, i] - variable_array[:, i-1])
                 total_cost += np.sum(subtraction_vec)
 
@@ -225,6 +227,8 @@ if __name__ == "__main__":
         optimal_trajectory = extract_path(result.GetSolution(var_matrix))
 
     # print("Optimal trajectory: ", optimal_trajectory)
+
+    wait_for_user('Solution found! Hit enter to show visualization')
 
     world = create_world(use_gui=True) #Create the world to visualize the optimized trajectory
 
