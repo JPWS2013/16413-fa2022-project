@@ -26,7 +26,7 @@ class Solver:
         self.num_rows, self.num_cols = self.guess_matrix.shape
         self.num_time_steps = self.num_cols
         self.num_joints = self.num_rows
-        print("num joints: ", self.num_joints)
+        # print("num joints: ", self.num_joints)
         self.var_matrix = self.prog.NewContinuousVariables(self.num_joints, self.num_time_steps , "j")
         # print('var matrix: ', self.var_matrix)
         self.start_pos = start_pos
@@ -43,8 +43,8 @@ class Solver:
         self.upper_joint_limits = np.array(self.upper_joint_limits)[:self.num_joints]
         self.lower_joint_limits = np.array(self.lower_joint_limits)[:self.num_joints]
 
-        print("Upper joint limits: ", self.upper_joint_limits)
-        print("Lower joint limits: ", self.lower_joint_limits)
+        # print("Upper joint limits: ", self.upper_joint_limits)
+        # print("Lower joint limits: ", self.lower_joint_limits)
 
         # print("upper_joint_limits: ", self.upper_joint_limits)
         # print("lower_joint_limits: ", self.lower_joint_limits)
@@ -52,12 +52,6 @@ class Solver:
 
         self.upper_limits_matrix = np.tile(self.upper_joint_limits.reshape(-1,1), self.num_time_steps)
         self.lower_limits_matrix = np.tile(self.lower_joint_limits.reshape(-1,1), self.num_time_steps)
-        
-        # print('upper limits: ', self.upper_limits_matrix)
-        # print('lower limits: ', self.lower_limits_matrix)
-        # flattened_var_matrix = self.var_matrix.flatten()
-        # print('Re-shaped var matrix: ', flattened_var_matrix.reshape((self.num_joints, self.num_time_steps)))
-        # print('sliced variable array', self.var_matrix[:,1] - self.var_matrix[:0])
         
         # Set heuristic costs
         def cost_fun(j):
@@ -72,7 +66,7 @@ class Solver:
             return total_cost
 
         self.solver_objects['cost'] = self.prog.AddCost(cost_fun, vars=self.var_matrix.flatten())
-        print(self.solver_objects['cost'])
+
         # Return separate joint limit checkers, one for each joint over all time
         # def joint_constraint(j):
         #     return j
@@ -117,16 +111,6 @@ class Solver:
             # ub=np.array([2.1]),
             vars=self.var_matrix[:,-1].flatten())
 
-        # print("end constraint: ", self.solver_objects['end_pos_check'])
-
-            # print('end pos: ', self.end_pos['arm'][:self.num_joints])
-        print('Start variables: ', self.var_matrix[:,0].flatten())
-        print('End variables: ', self.var_matrix[:,-1].flatten())
-        print('Lower bound for start: ', (self.start_pos['arm'][:self.num_joints] - self.radius))
-        print('Upper bound for start: ', (self.start_pos['arm'][:self.num_joints] + self.radius))
-        print('Lower bound for end: ', (self.end_pos['arm'][:self.num_joints] - self.radius))
-        print('Upper bound for end: ', (self.end_pos['arm'][:self.num_joints] + self.radius))
-
         #self.prog.SetInitialGuess(self.var_matrix, self.guess_matrix)
 
     def optimize(self):
@@ -134,18 +118,6 @@ class Solver:
         result = Solve(self.prog)
 
         return result, self.var_matrix
-        # print(f"Is optimization successful? {result.is_success()}")
-
-        # if not result.is_success():
-        #     raise ValueError('SOLUTION NOT FOUND!')
-        # print(f"Solution to x: {result.GetSolution(self.var_matrix)}")
-        # print(f"optimal cost: {result.get_optimal_cost()}")
-        # return self.var_matrix
-
-        # optimal_traject = optimize()
-
-
-
 
 
 def create_world(use_gui=False):
@@ -230,17 +202,7 @@ def extract_path(sol_array):
 
 if __name__ == "__main__":
 
-    #TODO: Initialize solver
-
-    # Hard-coded start and end points for the chosen trajectory
-    # start_pos = {
-    #     'arm':  [0.12, -0.5698, 0, -2.8106, -0.0003, 3.0363, 0.7411],
-    #     'base:': [0.7, -0.75, -1.57]
-    # }
-    # end_pos = {
-    #     'arm': [-0.010923567328455445, 0.3756526760797238, -0.7289112485142143, -2.2175170144491707, 2.4638620692328344, 1.9346847840915486, -1.770862013075821],
-    #     'base': [0.7, -0.75, -1.57]
-    # }
+    # Initialize solver
     start_pos, end_pos, guess_matrix = import_trajectory_parameters('traj_opt_data.csv')
 
     traj_solver = Solver(start_pos, end_pos, guess_matrix)
