@@ -123,7 +123,7 @@ Our motion planenr is implemented as a MotionPlanner class and is initialized wi
 | arm_goal_radius         | Radius of the goal region around the goal point for the arm (defined in terms of its 7-dimensional joint space)                           | 0.06            |
 | base_goal_radius        | Radius of the goal region around the goal point for the base (defined in terms of (x,y))                                                  | 0.05            |
 | base_step_size          | Step size used to interpolate the path of the base during collision checking                                                              | 0.05            |
-| base_theta_step_size    | Step size used to interpolate the path of the base when rotating from one heading to another during collision checking                    | pi/32           |
+| base_theta_step_size    | Step size used to interpolate the path of the base when rotating from one heading to another during collision checking                    | $\pi$/32           |
 | arm_step_size           | Step size used to interpolate the path of the arm during collision checking                                                               | 0.1             |
 | base_planning_threshold | Minimum Euclidean distance between start and goal points before the execution engine will try to plan the motion of the base. The base will not be moved if the euclidean distance is below this threshold. | 0.1             |
 
