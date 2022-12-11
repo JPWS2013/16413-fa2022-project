@@ -46,14 +46,10 @@ class Solver:
         def cost_fun(j):
             num_cols = int(j.shape[0]/7)
             variable_array = j.reshape((7, int(num_cols)))
-            # print("Number of time points: ", num_cols)
-            # print('Variable array in cost func: ', variable_array)
             total_cost = 0
             for i in range(1, num_cols):
                 subtraction_vec = abs(variable_array[:, i] - variable_array[:, i-1])
                 total_cost += np.sum(subtraction_vec)
-
-            # print("Total cost: ", total_cost)
             return total_cost
 
         self.solver_objects['cost'] = self.prog.AddCost(cost_fun, vars=self.var_matrix.flatten())
@@ -87,8 +83,6 @@ class Solver:
             start_constraint,
             lb=(self.start_pos['arm'][:self.num_joints] - self.radius),
             ub=(self.start_pos['arm'][:self.num_joints] + self.radius),
-            # lb=np.array([0.3]),
-            # ub=np.array([1.5]),
             vars=self.var_matrix[:,0].flatten())
 
         # print("start constraint: ", self.solver_objects['start_pos_check'])
@@ -97,8 +91,6 @@ class Solver:
             end_constraint,
             lb=(self.end_pos['arm'][:self.num_joints] - self.radius),
             ub=(self.end_pos['arm'][:self.num_joints] + self.radius),
-            # lb=np.array([1.4]),
-            # ub=np.array([2.1]),
             vars=self.var_matrix[:,-1].flatten())
 
         #self.prog.SetInitialGuess(self.var_matrix, self.guess_matrix)
