@@ -18,7 +18,7 @@ The objective of this project was to implement activity planning, motion plannin
 
 ### Domain Assumptions ###
 Our implementation of activity planning makes the following assumptions:
-1. We assume that items to be gripped will always be directly accessible (e.g. no need grip an item inside a closed drawer/cabinet). 
+1. We assume that items to be gripped will always be directly accessible (e.g. no need to grip an item inside a closed drawer/cabinet). 
 2. We assume that the red drawer is the only location that items need to be stored in.
 3. We assume that once gripped, an item has the same location as the robot arm and the item will not have its own associated location until it is released.
 4. We assume that the act of grasping/releasing objects includes moving the arm into the grasp pose. As such, there is no separately defined arm movement action.
@@ -55,7 +55,7 @@ The key challenge we faced was that our FF heuristic planner was creating connec
 ## Part 2: Motion Planning
 
 ### Overview
-Our motion planner implements Rapidly Exploring Random Trees (RRT) for both the base and the arm. The motion of the base is planned in terms of (x position, y position, heading) while the arm is planned in "joint space", which is defined by the 7 joint angles for the Franka arm.
+Our motion planner implements Rapidly Exploring Random Trees (RRT) for both the base and the arm. The motion of the base is planned in terms of (x, y, heading) while the arm is planned in joint space.
 
 The key files for this part are:
 * The execution engine is defined in ```run_project.py```
@@ -65,7 +65,7 @@ The key files for this part are:
 Our implementation of the motion planner and execution engine makes the following assumptions:
 1. We assume that the **<ins>base is holonomic</ins>** and either moves in a straight line or rotates from one heading to another
 2. We assume that the **<ins>kitchen environment is fixed and static </ins>**. Thus, the following values are hardcoded:
-    * All base goal points are hardcoded to have x=0.7
+    * All base goal points have x=0.7
     * To ensure plans around the red drawer are always feasible, all interactions with the right-side countertop or drawer are performed from a hardcoded position in front of the stove at (0.7, 0.55)
     * When placing the sugar box down on the countertop, the target offsets from the centerpoint of the countertop are hardcoded
     * The arm opens the drawer by a hard-coded distance of 0.35
@@ -81,8 +81,8 @@ In addition, there is a hardcoded park position that we use to stow the arm.
 To get a motion plan, the execution engine calls the MotionPlanner class method ```plan``` which performs standard RRT. Some notable aspects of our implementation:
 1. <ins>Random Sampling</ins>: Random samples for the base or arm are drawn from either the goal region (for goal biasing) or the full configuration space. Sampling from the goal region is done by setting the lower and upper bound of the goal region as "custom limits" for the relevant joints
 2. <ins>Collision Checking </ins>: To ensure the whole path is collision free, our motion planner first interpolates intermediate positions of the base or arm (whichever is being planned) between the nearest node and the new node. This includes interpolating the heading of the robot. Then, for every interpolated position, the following collision checks are performed:
-    * Collision between robot body and objects (i.e. sugar box and potted meat can). Collisions with an object are ignored if it is grasped
-    * Collisions between the robot body and any of the cabinets, countertops and appliances. If the drawer is being opened or closed, collisions with the drawer handle are ignored
+    * Collision between the robot body and sugar box and potted meat can. Collisions with an object are ignored if it is grasped
+    * Collisions between the robot body and the kitchen. If the drawer is being opened or closed, collisions with the drawer handle are ignored
     * If an object is being grasped, check collisions between that object and any of the kitchen cabinets, countertops and appliances
 3. <ins>Path Retrieval</ins> When retrieving the path, every interpolated point from start to end is retreived and returned to the execution engine.
 
@@ -139,7 +139,7 @@ We start by creating a constraint which limits each joint to within its manufact
 
 We then express collision constraints to prevent the end effector from colliding with the robot base and kitchen cabinets. We do this using the function $f(j_{0:6,t})$ which we define as a forward kinematics function which returns the cartesian coordinates of the end effector at timestep $t$ from the joint angles $j_{0:6}$. Collisions are avoided by ensuring the end effector never enters the volumes that define the robot base and kitchen cabinets
 
-Finally, we express the constraints which limit the maximum angular displacment per timestep length to the manufacturer specified (https://www.generationrobots.com/en/403992-7-axis-franka-research-3-robotic-arm-fci-licence.html#spec) maximum joint angular velocity. 
+Finally, we express the constraints which limit the maximum angular displacment per timestep length to the [manufacturer-specified](https://www.generationrobots.com/en/403992-7-axis-franka-research-3-robotic-arm-fci-licence.html#spec) maximum joint angular velocity. 
 
 While we included collision constraints in our formal problem definition, we chose not to include them in the code implementation to reduce complexity since our optimum plan does not contain collisions even without collision constraints.
 
