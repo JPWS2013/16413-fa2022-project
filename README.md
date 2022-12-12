@@ -14,8 +14,6 @@ The objective of this project was to implement activity planning, motion plannin
 1. Place the sugar box on a nearby countertop 
 2. Place the potted meat can in the red drawer
 
-This writeup begins by describing how the sequence of activities needed to accomplish both tasks is generated. Then, the next section describes how each activity is translated into motion paths of the base or arm. Finally, the last section describes how a constrained optimization problem formulation is used to generate an optimized trajectory for the robot arm.
-
 ## Part 1: Activity Planning
 
 ### Domain Assumptions ###
@@ -161,3 +159,6 @@ Left: Unoptimized trajectory &nbsp;&nbsp;|| &nbsp;&nbsp; Right: Optimized trajec
 </p>
 
 As shown in the two GIFs above, it can be seen that the RRT-generated trajectory is not optimal because it contains several unnecessary movements of the arm. By contrast, the optimized trajectory moves the arm as directly as possible from the start to the goal position without those unecessary movements.
+
+### Challenges Faced ###
+One of the challenges we faced was figuring out how to implement the joint limit and max joint velocity constraints. We initially wanted to encode that as one constraint that checks the entire matrix of decision variables but realized pydrake does not allow constraints to be defined this way. Ultimately, we decided to implement these constraints separately for each joint.
