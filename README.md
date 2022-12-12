@@ -117,7 +117,7 @@ Another key challenge we faced was figuring out how to perform efficient collisi
 
 ## Part 3: Trajectory Optimization
 Our formal non-linear optimization problem is formulated as follows:
-<br>
+
 $$
 \begin{align*}
 \text{minimize} \quad & \sum_{i,t} |j_{i+1,t}-j_{i,t}|, \; \forall \;\; i \; \in \; [0,5], \; t \; \; \in \; [t_o, t_f]\\
