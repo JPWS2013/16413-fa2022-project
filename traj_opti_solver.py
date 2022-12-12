@@ -210,8 +210,6 @@ if __name__ == "__main__":
     else: 
         optimal_trajectory = extract_path(result.GetSolution(var_matrix))
 
-    # print("Optimal trajectory: ", optimal_trajectory)
-
     wait_for_user('Solution found! Hit enter to show visualization')
 
     world = create_world(use_gui=True) #Create the world to visualize the optimized trajectory
