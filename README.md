@@ -14,23 +14,23 @@ The objective of this project was to implement activity planning, motion plannin
 1. Place the sugar box on a nearby countertop 
 2. Place the potted meat can in the red drawer
 
-This writeup begins by describing how the sequence of activities needed to accomplish both tasks is generated. Then, the next section describes how each activity is translated into motion paths of the base and/or arm. Finally, the last section describes how a constrained optimization problem formulation is used to generate an optimized trajectory for the robot arm.
+This writeup begins by describing how the sequence of activities needed to accomplish both tasks is generated. Then, the next section describes how each activity is translated into motion paths of the base or arm. Finally, the last section describes how a constrained optimization problem formulation is used to generate an optimized trajectory for the robot arm.
 
 ## Part 1: Activity Planning
 
 ### Domain Assumptions ###
 Our implementation of activity planning makes the following assumptions:
-1. We assume that items to be gripped will always be directly accessible (e.g. no need grip an item inside a closed drawer/cabinet). 
+1. We assume that items to be gripped will always be directly accessible (e.g. no need to grip an item inside a closed drawer) 
 2. We assume that the red drawer is the only location that items need to be stored in
-3. We assume that once gripped, an item has the same location as the robot arm and the item will not have its own associated location until it is released.
-4. We assume that the act of grasping/releasing objects includes moving the arm into the grasp pose. As such, there is no separately defined arm movement action
+3. We assume that a gripped item has the same location as the robot arm and that item will not have its own associated location until it is released.
+4. We assume that the act of grasping/releasing objects includes moving the arm into the grasp/release pose. As such, there is no separately defined arm movement action
 5. We assume that locations do not have a maximum storage capacity for items
 
 ### Key Files and Functions ###
 
 The key files for activity planning can be found in the ```ActivityPlanner``` folder. They are:
 1. ```kitchen.pddl```: Defines the kitchen domain including the main locations, objects and possible actions
-2. ```pb1.pddl```: Defines the problem to be solved by the activity planner. including the initial and goal states
+2. ```pb1.pddl```: Defines the problem to be solved by the activity planner including the initial and goal states
 3. ```ff_planner.py```: Defines the functions needed to carry out activity planning
 
 
@@ -39,20 +39,20 @@ Our activity plan is generated using an enforced hill climb algorithm implemente
 
 If one of the possible next actions has a lower heuristic value than the incumbent (i.e. the lowest heuristic value found so far), the first action with a lower heuristic value is selected as the next action to take
 
-However, if at least one of the actions has the same heuristic value as the incumbent and none have a lower value, then a plateau has been reached and the ```resolve_plateau``` function resolves the plateau by performing breadth-first search (BFS) to search child states until a sequence of actions is found that has a lower heuristic value than the incumbent.
-    
-Once an action has been selected, the fact layer associated with it is expanded and this process repeats until the goal state is reached.
+However, if none of the actions have a lower heuristic value but at least one of them has the same heuristic value as the incumbent, then a plateau has been reached and the ```resolve_plateau``` function resolves the plateau by performing breadth-first search (BFS) to search child states until a sequence of actions is found that has a lower heuristic value than the incumbent.
+
+The fact layer associated with the selected action is then expanded and this process repeats until the goal state is reached.
 
 ### Calculating the FF Heuristic ###
 
-```calculate_heuristic``` calculates the FF heuristic based on a relaxed plan graph (RPG) as follows:
-1. ```compute_rpg``` computes the relaxed plan graph (RPG) by starting with a given current state and generating the sequence of alternating fact and action layers, ignoring the delete effects of actions. Between fact layers, we carry over facts resulting from no-op from the previous fact layer. To facilitate calculating the FF heuristic, links are maintained between each new fact (i.e. facts not carried over by the no-op) in a fact layer and the action that added that fact.
-2. ```extract_heuristic``` then takes the generated RPG and follows the links between facts and actions to follow the RPG backwards from the final fact layer to the starting fact layer, counting the actions needed along the way to achieve the goal state. The number of actions counted is returned as the heuristic value.
+The FF heuristic is essentially an estimate of the number of actions remaining to reach the goal. ```calculate_heuristic``` calculates this heuristic based on a relaxed plan graph (RPG) as follows:
+1. ```compute_rpg``` computes the RPG by starting with a given current state and generating the sequence of alternating fact and action layers, ignoring the delete effects of actions. Between fact layers, we carry over facts resulting from no-op from the previous fact layer. To facilitate calculating the FF heuristic, links are maintained between each new fact (i.e. facts not carried over by the no-op) in a fact layer and the action that added that fact.
+2. ```extract_heuristic``` then takes the generated RPG and follows the links between fact and action layers backwards from the final fact layer to the starting fact layer, counting the actions needed along the way to achieve the goal state. The number of actions counted is returned as the heuristic value.
 
 
 ### Challenges Faced ###
 
-The key challenge we faced was that our FF heuristic planner was creating connections to facts that were carried over by the "no-op" and actions in the preceding action layer. As a result, our FF heuristic values were much larger than expected. By adding links only between new facts and actions, we were able to resolve this problem.
+The key challenge we faced was that our FF heuristic planner was creating connections between facts that were carried over by the "no-op" and actions in the preceding action layer. As a result, our FF heuristic values were much larger than expected. By adding links only between new facts and actions, we were able to resolve this problem.
 
 ## Part 2: Motion Planning
 
@@ -67,11 +67,10 @@ The key files for this part are:
 Our implementation of the motion planner and execution engine makes the following assumptions:
 1. We assume that the **<ins>base is holonomic</ins>** and either moves in a straight line or rotates from one heading to another
 2. We assume that the **<ins>kitchen environment is fixed and static </ins>**. Thus, the following values are hardcoded:
-    * All base goal locations are hardcoded to have x=0.7
-    * To ensure plans around the red drawer are always feasible, base goal locations for interactions with the right-side countertop or drawer are hardcoded to be in front of the stove at (0.7, 0.55)
+    * All base goal points are hardcoded to have x=0.7
+    * To ensure plans around the red drawer are always feasible, all interactions with the right-side countertop or drawer are performed from a hardcoded position in front of the stove at (0.7, 0.55)
     * When placing the sugar box down on the countertop, the target offsets from the centerpoint of the countertop are hardcoded
     * The arm opens the drawer by a hard-coded distance of 0.35
-    <!-- * When placing the potted meat can down on the countertop, the position is hardcoded to be ???  -->
 3. We assume that **<ins>objects are static and always start at the same position</ins>**. Thus, the grasp poses for the sugar box and potted meat can are predetermined and hardcoded 
 4. We assume that we can **<ins>ignore the gripping dynamics of the robot arm </ins>**. Thus:
     * Objects are grasped by attaching them to the end effector and moving them jointly with the end effector until the object is released
@@ -87,7 +86,7 @@ To get a motion plan, the execution engine calls the MotionPlanner class method 
     * Collision between robot body and objects (i.e. sugar box and potted meat can). Collisions with an object are ignored if it is grasped
     * Collisions between the robot body and any of the cabinets, countertops and appliances. If the drawer is being opened or closed, collisions with the drawer handle are ignored
     * If an object is being grasped, check collisions between that object and any of the kitchen cabinets, countertops and appliances
-3. <ins>Path Retrieval</ins> When retrieving the path, every interpolated point from start to end containing is retreived and returned to the execution engine.
+3. <ins>Path Retrieval</ins> When retrieving the path, every interpolated point from start to end is retreived and returned to the execution engine.
 
 ### Integrating the Activity Plan with the Motion Plan ###
 
@@ -137,7 +136,15 @@ $$
 \end{align*}
 $$
 
-The decision variables in the optimization problem are the angles of each arm joint at each time step. The decision variables are stored in the matrix $J_{i,t}$ where $j_{i,t}$ represents the joint angle of th $i$-th joint at the $t$-th timestep. Our cost function seeks to minimize the sum of all joint angle displacments over all joints and all timesteps. We start by creating a constraint which limits each joint to within its manufacturer specified limits at each time step. We also express a constraint which limits each joint at the first timestep to its starting position, as well as a constraint which limits each joint at the last timestep to its end position. We use upper and lower angle bounds for each joint to accomplish the preceding constraints. We then express constraints which prevent the end effector from entering the bounds of the robot base and the cabinets. We do this using the function $f(j_{0:6,t})$ which we define as a forward kinematics function which returns the cartesian coordinates of the end effector at timestep $t$ from the joint angles $j_{0:6}$. Finally, we express the constraints which limit the maximum angular displacment per timestep length to the manufacturer specified maximum joint angular velocity (2.62 rad/s for the first three joints, and 5.25 rad/s for the last four). While we included collision constraints in our formal problem definition, in the code implementation of the solver we choose not to include collision constraints. This is because we did not experience collisions in our optimum plan for our choosen task even with collision constraints relaxed, therefore, we removed them to reduce complexity, 
+The decision variables in the optimization problem are the angles of each arm joint at each time step. The decision variables are stored in the matrix $J$ where its elements $j_{i,t}$ represents the joint angle of th $i$-th joint at the $t$-th timestep. Our cost function seeks to minimize the sum of all joint angle displacments over all joints and all timesteps. 
+
+We start by creating a constraint which limits each joint to within its manufacturer-specified joint limits at each time step. We also express a constraint which limits each joint at the first timestep to its starting position, as well as a constraint which limits each joint at the last timestep to its end position. We use upper and lower bounds for each joint to accomplish the preceding constraints. 
+
+We then express collision constraints to prevent the end effector from colliding with the robot base and kitchen cabinets. We do this using the function $f(j_{0:6,t})$ which we define as a forward kinematics function which returns the cartesian coordinates of the end effector at timestep $t$ from the joint angles $j_{0:6}$. Collisions are avoided by ensuring the end effector never enters the volumes that define the robot base and kitchen cabinets
+
+Finally, we express the constraints which limit the maximum angular displacment per timestep length to the manufacturer specified maximum joint angular velocity (2.62 rad/s for the first three joints, and 5.25 rad/s for the last four). 
+
+While we included collision constraints in our formal problem definition, in the code implementation of the solver we choose not to include collision constraints. This is because we did not experience collisions in our optimum plan for our choosen trajectory even with collision constraints relaxed. Therefore, we chose not to implement them to reduce complexity, 
 
 ### Key Files and Functions ###
 ```traj_opti_solver.py``` implements the above problem formulation using pydrake's SNOPT solver. <br>
