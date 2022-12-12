@@ -139,11 +139,7 @@ We start by creating a constraint which limits each joint to within its manufact
 
 We then express collision constraints to prevent the end effector from colliding with the robot base and kitchen cabinets. We do this using the function $f(j_{0:6,t})$ which we define as a forward kinematics function which returns the cartesian coordinates of the end effector at timestep $t$ from the joint angles $j_{0:6}$. Collisions are avoided by ensuring the end effector never enters the volumes that define the robot base and kitchen cabinets
 
-<<<<<<< Updated upstream
-Finally, we express the constraints which limit the maximum angular displacment per timestep length to the manufacturer specified maximum joint angular velocity. 
-=======
-Finally, we express the constraints which limit the maximum angular displacment per timestep length to the manufacturer specified (https://www.generationrobots.com/en/403992-7-axis-franka-research-3-robotic-arm-fci-licence.html#spec) maximum joint angular velocity (2.62 rad/s for the first three joints, and 5.25 rad/s for the last four). 
->>>>>>> Stashed changes
+Finally, we express the constraints which limit the maximum angular displacment per timestep length to the manufacturer specified (https://www.generationrobots.com/en/403992-7-axis-franka-research-3-robotic-arm-fci-licence.html#spec) maximum joint angular velocity. 
 
 While we included collision constraints in our formal problem definition, we chose not to include them in the code implementation to reduce complexity since our optimum plan does not contain collisions even without collision constraints.
 
