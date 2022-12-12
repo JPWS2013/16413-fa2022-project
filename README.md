@@ -116,6 +116,8 @@ A key challenge we faced was deciding what configuration space to plan the arm m
 Another key challenge we faced was figuring out how to perform efficient collision checking between robot links to make sure that the robot could not collide with itself. We started by using pybullet's pairwise link collision checking but found that function to be very slow. Since our existing planner didn't seem to have too many problems with the robot colliding into itself, we decided not to keep trying to implement this aspect of collision checking. As such, this is a significant limitation of our implementation - that there is the possibility that a motion plan for the arm is generated that causes the arm to collide with itself.
 
 ## Part 3: Trajectory Optimization
+
+### Formal Definition of Optimization Problem ###
 Our formal non-linear optimization problem is formulated as follows:
 
 $$
@@ -134,6 +136,9 @@ $$
 & \bigg | \frac{j_{i,t_{\lambda} - j_{i,t_{\lambda-1}}}}{t_{\lambda} - t_{\lambda-1}} \bigg | \leq 5.25, \; \forall \;\; i \; \in \; [4,7], \;  \lambda \; \in \; [0,len(t)]\\
 \end{align*}
 $$
+
+### Key Files and Functions ###
+```traj_opti_solver.py``` implements the above problem formulation using pydrake's SNOPT solver.
 
 ### Comparison of RRT-Generated v.s. Optimized Trajectories ###
 
