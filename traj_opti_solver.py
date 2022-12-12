@@ -55,8 +55,8 @@ class Solver:
 
         self.solver_objects['cost'] = self.prog.AddCost(cost_fun, vars=self.var_matrix.flatten())
 
-        # Set constraints for joint limits and max joint velocities ########
-        # Return separate joint limit checkers, one for each joint over all time
+        
+        # For joint position and veocity limits, return separate joint limit constraints for each joint
         def return_var_matrix_fun(j):
             return j
 
@@ -66,15 +66,17 @@ class Solver:
                 vel.append(abs((j[i]-j[i-1])/0.5))
             print("Velocity list: ", vel)
             return np.array(vel)
-
-
+        
         for i in range(self.num_joints):
+
+        # Set constraints for joint limits and max joint velocities ########
             self.solver_objects['joint_limit_'+str(i)] = self.prog.AddConstraint(
                 return_var_matrix_fun,
                 lb=self.lower_limits_matrix[i,:],
                 ub=self.upper_limits_matrix[i,:],
                 vars=self.var_matrix[i,:].flatten())
 
+        # Set constraint on joint velocities ###############################
             self.solver_objects['joint_vel_limit_'+str(i)] = self.prog.AddConstraint(calc_joint_vels, 
             lb=np.zeros(self.max_joint_vel_matrix.shape[1]),
             ub=self.max_joint_vel_matrix[i,:],
@@ -87,8 +89,6 @@ class Solver:
             ub=(self.start_pos['arm'][:self.num_joints] + self.radius),
             vars=self.var_matrix[:,0].flatten())
 
-        # print("start constraint: ", self.solver_objects['start_pos_check'])
-
         # Set constraint on ending position ################################
         self.solver_objects['end_pos_check'] = self.prog.AddConstraint(
             return_var_matrix_fun,
@@ -96,21 +96,18 @@ class Solver:
             ub=(self.end_pos['arm'][:self.num_joints] + self.radius),
             vars=self.var_matrix[:,-1].flatten())
 
-        # Set cosntraint on joint velocities ###############################
-
-
-
-        #self.prog.SetInitialGuess(self.var_matrix, self.guess_matrix)
-
     def optimize(self):
         wait_for_user("Press enter to begin planning")
         result = Solve(self.prog)
-
         return result, self.var_matrix
 
 
+#####################
+# The functions below are defined outside the Solver class and are simply helper functions
+# to help read the start and goal positions from a CSV and set up the pybullet simulator 
+# to visualize the optimized trajectory
+#####################
 def create_world(use_gui=False):
-        
         add_sugar_box = lambda world, **kwargs: add_ycb(world, 'sugar_box', **kwargs)
         add_spam_box = lambda world, **kwargs: add_ycb(world, 'potted_meat_can', **kwargs)
         
