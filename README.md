@@ -48,7 +48,7 @@ Once an action has been selected, the fact layer associated with it is expanded 
 ### Calculating the FF Heuristic ###
 
 ```calculate_heuristic``` calculates the FF heuristic based on a relaxed plan graph (RPG) as follows:
-1. ```compute_rpg``` computes the relaxed plan graph (RPG) by starting with a given current state and generating the sequence of alternating fact and action layers, ignoring the delete effects of actions. Between fact layers, we carry over facts resulting from no-op from the previous fact layer. To facilitate calculating the FF heuristic, links are maintained between each new fact in a fact layer (i.e. facts not carried over by the no-op) and the action that added that fact.
+1. ```compute_rpg``` computes the relaxed plan graph (RPG) by starting with a given current state and generating the sequence of alternating fact and action layers, ignoring the delete effects of actions. Between fact layers, we carry over facts resulting from no-op from the previous fact layer. To facilitate calculating the FF heuristic, links are maintained between each new fact (i.e. facts not carried over by the no-op) in a fact layer and the action that added that fact.
 2. ```extract_heuristic``` then takes the generated RPG and follows the links between facts and actions to follow the RPG backwards from the final fact layer to the starting fact layer, counting the actions needed along the way to achieve the goal state. The number of actions counted is returned as the heuristic value.
 
 
