@@ -20,18 +20,18 @@ This writeup begins by describing how the sequence of activities needed to accom
 
 ### Domain Assumptions ###
 Our implementation of activity planning makes the following assumptions:
-1. We assume that items to be gripped will always be directly accessible (e.g. no need to grip an item inside a closed drawer) 
-2. We assume that the red drawer is the only location that items need to be stored in
-3. We assume that a gripped item has the same location as the robot arm and that item will not have its own associated location until it is released.
-4. We assume that the act of grasping/releasing objects includes moving the arm into the grasp/release pose. As such, there is no separately defined arm movement action
-5. We assume that locations do not have a maximum storage capacity for items
+1. We assume that items to be gripped will always be directly accessible (e.g. no need grip an item inside a closed drawer/cabinet). 
+2. We assume that the red drawer is the only location that items need to be stored in.
+3. We assume that once gripped, an item has the same location as the robot arm and the item will not have its own associated location until it is released.
+4. We assume that the act of grasping/releasing objects includes moving the arm into the grasp pose. As such, there is no separately defined arm movement action.
+5. We assume that locations do not have a maximum storage capacity for items.
 
 ### Key Files and Functions ###
 
 The key files for activity planning can be found in the ```ActivityPlanner``` folder. They are:
-1. ```kitchen.pddl```: Defines the kitchen domain including the main locations, objects and possible actions
-2. ```pb1.pddl```: Defines the problem to be solved by the activity planner including the initial and goal states
-3. ```ff_planner.py```: Defines the functions needed to carry out activity planning
+1. ```kitchen.pddl```: Defines the kitchen domain including the main locations, objects and possible actions.
+2. ```pb1.pddl```: Defines the problem to be solved by the activity planner. including the initial and goal states.
+3. ```ff_planner.py```: Defines the functions needed to carry out activity planning.
 
 
 ### Generating the Activity Plan ###
@@ -136,7 +136,7 @@ $$
 \end{align*}
 $$
 
-The decision variables in the optimization problem are the angles of each arm joint at each time step. The decision variables are stored in the matrix $J$ where its elements $j_{i,t}$ represents the joint angle of th $i$-th joint at the $t$-th timestep. Our cost function seeks to minimize the sum of all joint angle displacments over all joints and all timesteps. 
+The decision variables in the optimization problem are the angles of each arm joint at each time step. The decision variables are stored in the matrix $J_{i,t}$ where $j_{i,t}$ represents the joint angle of th $i$-th joint at the $t$-th timestep. Our cost function seeks to minimize the sum of all joint angle displacments over all joints and all timesteps. Fundementally, this means we are trying to minimize the distance all links in the arm move, and by extension, minimize the distance the end effecto needs to travel to reach its goal. 
 
 We start by creating a constraint which limits each joint to within its manufacturer-specified joint limits at each time step. We also express a constraint which limits each joint at the first timestep to its starting position, as well as a constraint which limits each joint at the last timestep to its end position. We use upper and lower bounds for each joint to accomplish the preceding constraints. 
 
