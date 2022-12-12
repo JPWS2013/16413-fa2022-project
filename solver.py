@@ -41,6 +41,11 @@ class Solver:
 
         self.upper_limits_matrix = np.tile(self.upper_joint_limits.reshape(-1,1), self.num_time_steps)
         self.lower_limits_matrix = np.tile(self.lower_joint_limits.reshape(-1,1), self.num_time_steps)
+
+        self.max_joint_vel = np.array([2.62,2.62,2.62,2.62,5.25,5.25,5.25])
+        self.max_joint_vel_matrix = np.tile(self.max_joint_vel.reshape(-1,1), (self.num_time_steps-1))
+
+        print("Joint vel matrix: ", self.max_joint_vel_matrix)
         
         # Set heuristic costs ##############################################
         def cost_fun(j):
@@ -54,10 +59,18 @@ class Solver:
 
         self.solver_objects['cost'] = self.prog.AddCost(cost_fun, vars=self.var_matrix.flatten())
 
-        # Set joint  limits constraint #####################################
+        # Set constraints for joint limits and max joint velocities ########
         # Return separate joint limit checkers, one for each joint over all time
         def return_var_matrix_fun(j):
             return j
+
+        def calc_joint_vels(j):
+            vel = list()
+            for i in range(1, j.shape[0]):
+                vel.append(abs((j[i]-j[i-1])/0.5))
+            print("Velocity list: ", vel)
+            return np.array(vel)
+
 
         for i in range(self.num_joints):
             # print('lb for ', i, ': ', self.lower_limits_matrix[i,:])
@@ -68,6 +81,11 @@ class Solver:
                 lb=self.lower_limits_matrix[i,:],
                 ub=self.upper_limits_matrix[i,:],
                 vars=self.var_matrix[i,:].flatten())
+
+            self.solver_objects['joint_vel_limit_'+str(i)] = self.prog.AddConstraint    (calc_joint_vels, 
+            lb=np.zeros(self.max_joint_vel_matrix.shape[1]),
+            ub=self.max_joint_vel_matrix[i,:],
+            vars=self.var_matrix[i,:].flatten())
             # print("Constraint for joint", i, ':', self.solver_objects['joint_limit_'+str(i)])
 
         # Set constraint on starting position ##############################
@@ -85,6 +103,10 @@ class Solver:
             lb=(self.end_pos['arm'][:self.num_joints] - self.radius),
             ub=(self.end_pos['arm'][:self.num_joints] + self.radius),
             vars=self.var_matrix[:,-1].flatten())
+
+        # Set cosntraint on joint velocities ###############################
+
+
 
         #self.prog.SetInitialGuess(self.var_matrix, self.guess_matrix)
 
