@@ -10,9 +10,7 @@
 
 ## Introduction 
 
-The objective of this project was to implement activity planning, motion planning and trajectory optimization for a robot consisting of a Franka arm and mobile base to accomplish pick and place tasks involving a sugar box and a potted meat can. 
-
-The 2 tasks the robot had to accomplish were: 
+The objective of this project was to implement activity planning, motion planning and trajectory optimization for a robot consisting of a Franka arm and mobile base to accomplish two pick and place tasks: 
 1. Place the sugar box on a nearby countertop 
 2. Place the potted meat can in the red drawer
 
