@@ -1,7 +1,7 @@
 import numpy as np
 from pddl_parser.PDDL import PDDL_Parser
 import os, sys, traceback, math, time
-import MotionPlanner.RRT_star as mp
+import MotionPlanner.RRT as mp
 
 SUBMODULE_PATH= os.path.abspath(os.path.join(os.getcwd(), 'padm-project-2022f'))
 sys.path.append(SUBMODULE_PATH)
