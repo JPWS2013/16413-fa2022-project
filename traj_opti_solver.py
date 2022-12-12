@@ -17,14 +17,11 @@ class Solver:
         self.solver_objects = dict()
         self.radius = radius
         self.guess_matrix = np.array(guess_matrix)
-        self.guess_matrix = self.guess_matrix[:7,:10]
         self.prog = MathematicalProgram()
-        self.num_rows, self.num_cols = self.guess_matrix.shape
+        self.num_rows, self.num_cols = (7,10)#self.guess_matrix.shape
         self.num_time_steps = self.num_cols
         self.num_joints = self.num_rows
-        # print("num joints: ", self.num_joints)
         self.var_matrix = self.prog.NewContinuousVariables(self.num_joints, self.num_time_steps , "j")
-        # print('var matrix: ', self.var_matrix)
         self.start_pos = start_pos
         self.end_pos = end_pos
         self.lower_joint_limits, self.upper_joint_limits = zip(*[
@@ -42,10 +39,9 @@ class Solver:
         self.upper_limits_matrix = np.tile(self.upper_joint_limits.reshape(-1,1), self.num_time_steps)
         self.lower_limits_matrix = np.tile(self.lower_joint_limits.reshape(-1,1), self.num_time_steps)
 
-        self.max_joint_vel = np.array([2.62,2.62,2.62,2.62,5.25,5.25,5.25])
+        # self.max_joint_vel = np.array([2.62,2.62,2.62,2.62,5.25,5.25,5.25])
+        self.max_joint_vel = np.array([0.75,0.75,0.75,0.75,2,2,2])
         self.max_joint_vel_matrix = np.tile(self.max_joint_vel.reshape(-1,1), (self.num_time_steps-1))
-
-        print("Joint vel matrix: ", self.max_joint_vel_matrix)
         
         # Set heuristic costs ##############################################
         def cost_fun(j):
@@ -73,20 +69,16 @@ class Solver:
 
 
         for i in range(self.num_joints):
-            # print('lb for ', i, ': ', self.lower_limits_matrix[i,:])
-            # print('ub for ', i, ': ', self.upper_limits_matrix[i,:])
-
             self.solver_objects['joint_limit_'+str(i)] = self.prog.AddConstraint(
                 return_var_matrix_fun,
                 lb=self.lower_limits_matrix[i,:],
                 ub=self.upper_limits_matrix[i,:],
                 vars=self.var_matrix[i,:].flatten())
 
-            self.solver_objects['joint_vel_limit_'+str(i)] = self.prog.AddConstraint    (calc_joint_vels, 
+            self.solver_objects['joint_vel_limit_'+str(i)] = self.prog.AddConstraint(calc_joint_vels, 
             lb=np.zeros(self.max_joint_vel_matrix.shape[1]),
             ub=self.max_joint_vel_matrix[i,:],
             vars=self.var_matrix[i,:].flatten())
-            # print("Constraint for joint", i, ':', self.solver_objects['joint_limit_'+str(i)])
 
         # Set constraint on starting position ##############################
         self.solver_objects['start_pos_check'] = self.prog.AddConstraint(
