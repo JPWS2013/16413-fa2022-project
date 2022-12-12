@@ -63,7 +63,7 @@ Our motion planner implements Rapidly Exploring Random Trees (RRT) for both the 
 
 The key files for this part are:
 * The execution engine is defined in ```run_project.py```
-* The motion planner is defined in ```MotionPlanner/RRT_star.py```
+* The motion planner is defined in ```MotionPlanner/RRT.py```
 
 ### Assumptions ###
 Our implementation of the motion planner and execution engine makes the following assumptions:
@@ -105,7 +105,9 @@ The following key functions are used to integrate the simulation, activity plan 
 
 ### GIF of Robot Executing the Plan ###
 
+<p align=center>
 <img src="readme_material/robot-planning-12-10.gif" width="900">
+</p>
 
 *Note: We recognize that our code needs additional offset factors to properly place the potted meat can in the drawer. However, we ran out of time to implement this and record a new video.*
 
@@ -123,19 +125,21 @@ Our formal non-linear optimization problem is formulated as follows:
 $$
 \begin{align*}
 \text{minimize} \quad & \sum_{i,t} |j_{i+1,t}-j_{i,t}|, \; \forall \;\; i \; \in \; [0,5], \; t \; \; \in \; [t_o, t_f]\\
-\text{subject to} \quad & J_{lb_i} \leq j_{i,t} \leq J_{ub_i}, \; \forall \;\; i \; \in \; [0,6], \; t \; \; \in \; [t_o, t_f]\\
-& S_{lb_i} \leq j_{i,t_0} \leq S_{ub_i}, \; \forall \;\; i \; \in \; [0,6]\\
-& E_{lb_i} \leq j_{i,t_f} \leq E_{ub_i}, \; \forall \;\; i \; \in \; [0,6]\\
-& C_{lb_x} \leq x_t \leq C_{ub_x}, \; (x_t, y_t, z_t) = f(j_{0:6,t}) \; \forall \;\; t  \; \in \; [t_o, t_f]\\
-& C_{lb_y} \leq y_t \leq C_{ub_y}, \; (x_t, y_t, z_t) = f(j_{0:6,t}) \; \forall \;\; t  \; \in \; [t_o, t_f]\\
-& C_{lb_z} \leq z_t \leq C_{ub_z}, \; (x_t, y_t, z_t) = f(j_{0:6,t}) \; \forall \;\; t  \; \in \; [t_o, t_f]\\
-& B_{lb_x} \leq x_t \leq B_{ub_x}, \; (x_t, y_t, z_t) = f(j_{0:6,t}) \; \forall \;\; t  \; \in \; [t_o, t_f]\\
-& B_{lb_y} \leq y_t \leq B_{ub_y}, \; (x_t, y_t, z_t) = f(j_{0:6,t}) \; \forall \;\; t  \; \in \; [t_o, t_f]\\
-& B_{lb_z} \leq z_t \leq B_{ub_z}, \; (x_t, y_t, z_t) = f(j_{0:6,t}) \; \forall \;\; t  \; \in \; [t_o, t_f]\\
-& \bigg | \frac{j_{i,t_{\lambda} - j_{i,t_{\lambda-1}}}}{t_{\lambda} - t_{\lambda-1}} \bigg | \leq 2.62, \; \forall \;\; i \; \in \; [0,3], \;  \lambda \; \in \; [0,len(t)]\\
-& \bigg | \frac{j_{i,t_{\lambda} - j_{i,t_{\lambda-1}}}}{t_{\lambda} - t_{\lambda-1}} \bigg | \leq 5.25, \; \forall \;\; i \; \in \; [4,7], \;  \lambda \; \in \; [0,len(t)]\\
+\text{subject to} \quad & L_{lb_i} \leq j_{i,t} \leq L_{ub_i}, \; \forall \;\; i \; \in \; [0,6], \; t \; \; \in \; [t_o, t_f] \quad \text{(Constrains each joint within joint limits.)} \\
+& S_{lb_i} \leq j_{i,t_0} \leq S_{ub_i}, \; \forall \;\; i \; \in \; [0,6]\quad \text{(Constrains each joint within a start range.)}\\
+& E_{lb_i} \leq j_{i,t_f} \leq E_{ub_i}, \; \forall \;\; i \; \in \; [0,6]\quad \text{(Constrains each joint within an end range.)}\\
+& C_{lb_x} \leq x_t \leq C_{ub_x}, \; (x_t, y_t, z_t) = f(j_{0:6,t}) \; \forall \;\; t  \; \in \; [t_o, t_f]\quad \text{(Constrains the end effector from entering the x-axis bounds of the cabinets.)}\\
+& C_{lb_y} \leq y_t \leq C_{ub_y}, \; (x_t, y_t, z_t) = f(j_{0:6,t}) \; \forall \;\; t  \; \in \; [t_o, t_f]\quad \text{(Constrains the end effector from entering the y-axis bounds of the cabinets.)}\\
+& C_{lb_z} \leq z_t \leq C_{ub_z}, \; (x_t, y_t, z_t) = f(j_{0:6,t}) \; \forall \;\; t  \; \in \; [t_o, t_f]\quad \text{(Constrains the end effector from entering the z-axis bounds of the cabinets.)}\\
+& B_{lb_x} \leq x_t \leq B_{ub_x}, \; (x_t, y_t, z_t) = f(j_{0:6,t}) \; \forall \;\; t  \; \in \; [t_o, t_f]\quad \text{(Constrains the end effector from entering the x-axis bounds of the base.)}\\
+& B_{lb_y} \leq y_t \leq B_{ub_y}, \; (x_t, y_t, z_t) = f(j_{0:6,t}) \; \forall \;\; t  \; \in \; [t_o, t_f]\quad \text{(Constrains the end effector from entering the y-axis bounds of the base.)}\\
+& B_{lb_z} \leq z_t \leq B_{ub_z}, \; (x_t, y_t, z_t) = f(j_{0:6,t}) \; \forall \;\; t  \; \in \; [t_o, t_f]\quad \text{(Constrains the end effector from entering the z-axis bounds of the base.)}\\
+& \bigg | \frac{j_{i,t_{\lambda}} - j_{i,t_{\lambda-1}}}{t_{\lambda} - t_{\lambda-1}} \bigg | \leq 2.62, \; \forall \;\; i \; \in \; [0,3], \;  \lambda \; \in \; [0,len(t)]\quad \text{(Constrains the first four joints to their maximum angular velocity.)}\\
+& \bigg | \frac{j_{i,t_{\lambda}} - j_{i,t_{\lambda-1}}}{t_{\lambda} - t_{\lambda-1}} \bigg | \leq 5.25, \; \forall \;\; i \; \in \; [4,6], \;  \lambda \; \in \; [0,len(t)]\quad \text{(Constrains the last three joints to their maximum angular velocity.)}\\
 \end{align*}
 $$
+
+The decision variables in the optimization problem are the angles of each arm joint at each time step. The decision variables are stored in the matrix $J_{i,t}$ where $j_{i,t}$ represents the joint angle of th $i$-th joint at the $t$-th timestep. Our cost function seeks to minimize the sum of all joint angle displacments over all joints and all timesteps. We express a constraint which limits each joint at the first timestep to its starting position, as well as a constraint which limits each joint at the last timestep to its end position. We then 
 
 ### Key Files and Functions ###
 ```traj_opti_solver.py``` implements the above problem formulation using pydrake's SNOPT solver.
@@ -146,5 +150,6 @@ The GIFs below show that the unoptimized trajectory generated by RRT includes se
 <p align=center>
 <img src="readme_material/unoptimized_trajectory.gif" width="500">
 <img src="readme_material/optimized_trajectory.gif" width="500">
+<br>
 Left: Unoptimized trajectory &nbsp;&nbsp;|| &nbsp;&nbsp; Right: Optimized trajectory
 </p>
