@@ -64,19 +64,18 @@ class Solver:
             vel = list()
             for i in range(1, j.shape[0]):
                 vel.append(abs((j[i]-j[i-1])/0.5))
-            print("Velocity list: ", vel)
             return np.array(vel)
         
         for i in range(self.num_joints):
 
-        # Set constraints for joint limits and max joint velocities ########
+        # Set constraints for joint limits #################################
             self.solver_objects['joint_limit_'+str(i)] = self.prog.AddConstraint(
                 return_var_matrix_fun,
                 lb=self.lower_limits_matrix[i,:],
                 ub=self.upper_limits_matrix[i,:],
                 vars=self.var_matrix[i,:].flatten())
 
-        # Set constraint on joint velocities ###############################
+        # Set constraint on max joint velocities ###########################
             self.solver_objects['joint_vel_limit_'+str(i)] = self.prog.AddConstraint(calc_joint_vels, 
             lb=np.zeros(self.max_joint_vel_matrix.shape[1]),
             ub=self.max_joint_vel_matrix[i,:],
@@ -200,7 +199,8 @@ if __name__ == "__main__":
 
     result, var_matrix = traj_solver.optimize()
 
-    print(f"Solution joint angles:\n {result.GetSolution(var_matrix)}")
+    print("")
+    # print(f"Solution joint angles:\n {result.GetSolution(var_matrix)}")
     print("Successful?", result.is_success())
     print("Solver is: ", result.get_solver_id().name())
     print('optimal cost = ', result.get_optimal_cost())
