@@ -33,9 +33,9 @@ Finally, the last section describes our implementation of trajectory optimizatio
 ### Domain Assumptions ###
 Our implementation of activiity planning makes the following assumptions:
 1. We assume that **<ins>items to be gripped will always be directly accessible</ins>** (e.g. no need to first open a drawer/cabinet before gripping an item). Based on this assumption, the way our grip action is defined will theoretically allow an item to be gripped even if the drawer is closed, which is not a realistic behavior. We could adjust our defined predicates to avoid this problem but have chosen not to do so since the tasks defined in the project do not require an item to be retrieved from the drawer.
-2. We assume that **<ins>the red drawer is the only location that items need to be stored in </ins>**. Based on this assumption, our problem file only defines the red drawer to be openable. If items need to be stored in other cabinets/draweres, our current problem file would not support that and would need to be modified. 
+2. We assume that **<ins>the red drawer is the only location that items need to be stored in </ins>**. Based on this assumption, our problem file only defines the red drawer to be openable. If items need to be stored in other cabinets/drawers, our current problem file would not support that and would need to be modified. 
 3. We assume that **<ins> an item has no associated location if it is gripped</ins>** because its location is the same as the location of the robot arm, making it redundant to keep track of the item's location separately from the robot arm when the item is gripped.
-4. We assume that **<ins> actions involving grasping/releasing objects includes movement of the arm into the grasp pose</ins>**
+4. We assume that **<ins> the act of grasping/releasing objects includes moving the arm into the grasp pose</ins>**. As such, there is no arm movement action defined and the move action is meant to move the whole robot from one location to another
 
 ### Key Files and Functions ###
 
@@ -47,21 +47,21 @@ The key files for activity planning can be found in the ```ActivityPlanner``` Fo
 The domain file ```kitchen.pddl``` defines the following types, predicates and actions:
 1. We have the following types in our domain:
 
-    - ```location```: Represents locations in the kitchen.
-    - ```item```: Represents items in the kitchen.
-    - ```arm```: Representsthe robotic arm.
+    - ```location```: Represents locations in the kitchen
+    - ```item```: Represents items in the kitchen
+    - ```arm```: Representsthe robotic arm
 
 2. We have the following predicates in our domain:
 
-    - ```opened```/```closed```: Records if a location (e.g. a drawer) is opened/closed or not
-        - ```openable```: Records if a location can be opened. This differentiates between counters and drawers
+    - ```opened``` and ```closed```: Records if a location (e.g. a drawer) is opened/closed
+    - ```openable```: Records if a location can be opened. This predicate differentiates between counters and drawers
+    - ```surface```: Records if a location is a surface or not
     - ```gripped```: Records if an item is being gripped by the robot arm
     - ```free```: Records if the item is not being gripped by the robot arm
     - ```itemat```: Records what location a specific item is at
     - ```itemin```: Records if an item is in an openable location 
     - ```armat```: Records what location the arm is at
     - ```empty```: Records if the arm is holding an item
-    - ```surface```: Records if a location is a surface or not
 
 3. We have the following actions in our domain:
 
@@ -74,13 +74,28 @@ The domain file ```kitchen.pddl``` defines the following types, predicates and a
 
 
 ### Generating the Activity Plan ###
-The enforced_hill_climb function in ```ff_planner.py``` takes the the current state (as defined in ```pb1.pddl```), the PDDL parser object (initialized outside of the function) and the set of grounded actions and performs the following key functions:
-We start with an initial fact layer. We expand our actions in the action layer which have their preconditions satisfied by our current fact layer. We then use the action layer to generate new facts from the effects of the actions in the action layer. We then do a union of the new facts with the previous fact layer in order to carry over new facts and facts resulting from no-op. We carry out this process until the goal appears in our fact layer. To keep track of the connections between facts and actions, at each fact layer we create a dictionary. The keys in the dictionary are made up of the facts in the layer while the entries associated with each key are the actions that the fact resulted from. Critically, this is only carried out for facts that were not in the previous fact layer i.e. not facts that were carried over by the no-op. Using this strategy we can follow the RPG backwards from a fact in order to count actions for the fast forward heuristic value. We then use the heuristic value to inform an Enforced Hill Climb algorithm. At each action selection we look for a state with a decreasing heuristic value. If we cannot find a decreasing heuristic value, BFS is used to determine the next action.
+The ```enforced_hill_climb``` function in ```ff_planner.py``` takes the starting state (i.e. the initial fact layer) and performs the following key functions:
+1. ```expand_state```: Based on the current fact layer, this function identifies all possible actions that can be taken. For each possible action, the resulting (child) fact layer is determined (accounting for delete effects) if that action is taken and then the ```calculate_heuristic``` function is called to calculate the fastforward (FF) heuristic for that child fact layer. It then returns a list of all possible actions to take with its associated heuristic value and next fact layer. 
+2. The heuristic values of each possible next action to take is then compared to the incumbent (lowest) heuristic value:
+    * If none of the possible next actions results in a lower heuristic value than the incumbent, then a plateau has been reached and the ```resolve_plateau``` function (described below) is called to resolve the plateau. That function ultimately returns the sequence of actions that leads to a lower heuristic value. 
+    * If at least one of the possible next actions has a lower heuristic value than the incumbent, the first action with a lower heuristic value is selected as the next action to take
+3. The loop then returns to #1 above and the fact layer associated with the selected action is expanded and the process continues until the goal state is reached.
+
+*Plateau Resolution*
+
+To resolve plateaus, the ```resolve_plateau``` function essentially peforms breadth-first search (BFS) starting with the subset of possible next actions that have the same heuristic value as the incumbent and searches until a sequence of actions is found that has a lower heuristic value than the incumbent. The same ```expand_state``` function described above is used to identify children of each fact layer. 
+
+*Calculating the FF Heuristic*
+
+```calculate_heuristic``` calculates the FF heuristic, which essentially is an estimate of how many more actions will be needed to reach the goal based on a relaxed plan graph (RPG). The 2 key components of this function are:
+1. ```compute_rpg``` which computes the relaxed plan graph. Starting with a given current state, this function creates the next action layer by identifying the actions which have their preconditions satisfied by the preceding fact layer in the RPG. It then uses the actions in the action layer to determine all the new facts that are the effects of those actions in the action layer (delete effects of actions are ignored). We then do a union of the new facts with the previous fact layer in order to carry over new facts and facts resulting from no-op. We carry out this process until the goal appears in our fact layer. 
+    * To facilitate calculating the FF heuristic, at each fact layer, links are maintained between new facts in that layer (i.e. not facts that were carried over by the no-op) and the action in the preceding action layer that added that fact.
+2. ```extract_heuristic``` then takes the generated RPG and, starting from the final fact layer, uses the links between facts and actions to follow the RPG backwards from the final fact layer to the starting fact layer. Along the way, the actions that contributed to reaching the goal state are counted and the number of actions needed is returned as the heuristic value that informs the enforced hill climb algorithm described above.
 
 
 ### Challenges Faced ###
 
-One of the key challenges we faced was that our FF heuristic planner was creating connections to facts that were carried over by the "no-op". This was causing us to have way too many fact to action connections as we worked backward through the RPG. This resulted in our fast forward heuristic value being way to high for any given fact. 
+One of the key challenges we faced was that our FF heuristic planner was creating connections to facts that were carried over by the "no-op" and actions in the preceding action layer. This was causing us to have way too many fact to action connections and therefore a fast forward heuristic value that was much larger than expected. By adding links only between new facts and actions, we were able to resolve this problem.
 
 ## Part 2: Motion Planning
 
