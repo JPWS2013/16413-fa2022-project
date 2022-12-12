@@ -10,28 +10,18 @@
 
 ## Introduction 
 
-The objective of this project was to implement activity planning, motion planning and trajectory optimization for a robot (the "Franka-Carter" - a Franka arm mounted on a carter mobile base) to enable it to accomplish pick and place tasks involving two objects - a sugar box and a potted meat can. 
+The objective of this project was to implement activity planning, motion planning and trajectory optimization for a robot consisting of a Franka arm and mobile base to accomplish pick and place tasks involving a sugar box and a potted meat can. 
 
-Specifically, there were 2 tasks the robot had to accomplish: 
-1. Locate the sugar box and place it on a nearby countertop 
-2. Locate the potted meat can and place it in the red drawer
+The 2 tasks the robot had to accomplish were: 
+1. Place the sugar box on a nearby countertop 
+2. Place the potted meat can in the red drawer
 
-The starting position of the robot and objects in the environment is shown in the image below:
-
-<p align="center">
-<img src="readme_material/initial_world.png" width="70%">
-</p>
-
-This writeup begins by describing the implementation of activity planning where the sequence of activities required to accomplish both tasks is generated. 
-
-The next section describes our implementation of motion planning where each activity in the activity plan is translated into motion paths of the base and/or arm. 
-
-Finally, the last section describes our implementation of trajectory optimization where an optimized trajectory of the robot arm is generated using a non-linear constrained optimization problem formulation.
+This writeup begins by describing how the sequence of activities needed to accomplish both tasks is generated. Then, the next section describes how each activity is translated into motion paths of the base and/or arm. Finally, the last section describes how a constrained optimization problem formulation is used to generate an optimized trajectory for the robot arm.
 
 ## Part 1: Activity Planning
 
 ### Domain Assumptions ###
-Our implementation of activiity planning makes the following assumptions:
+Our implementation of activity planning makes the following assumptions:
 1. We assume that items to be gripped will always be directly accessible (e.g. no need grip an item inside a closed drawer/cabinet). 
 2. We assume that the red drawer is the only location that items need to be stored in
 3. We assume that once gripped, an item has the same location as the robot arm and the item will not have its own associated location until it is released.
@@ -47,22 +37,18 @@ The key files for activity planning can be found in the ```ActivityPlanner``` Fo
 
 
 ### Generating the Activity Plan ###
-The ```enforced_hill_climb``` function in ```ff_planner.py``` takes the starting state (i.e. the initial fact layer) and performs the following key functions:
-1. ```expand_state```: Based on the current fact layer, this function identifies all possible actions and the resulting (child) fact layer for each action (accounting for delete effects). The ```calculate_heuristic``` function then calculates the fastforward (FF) heuristic for each child fact layer. Eventually, a list of all possible actions to take with its associated heuristic value and next fact layer is returned. 
-2. The heuristic values of each possible next action to take is then compared to the incumbent (lowest) heuristic value:
-    * If one of the possible next actions has a lower heuristic value than the incumbent, the first action with a lower heuristic value is selected as the next action to take
-    * If at least one of the actions has the same heuristic value as the incumbent and none have a lower value, then a plateau has been reached and the ```resolve_plateau``` function (described below) is called to resolve the plateau using breadth-first search (BFS). Ultimately, a sequence of actions that does lead to a lower heuristic value is returned. 
+Our activity plan is generated using an enforced hill climb algorithm implemented by the ```enforced_hill_climb``` function in ```ff_planner.py```. Starting with the initial fact layer, the ```expand_state``` function identifies all feasible actions and the resulting (child) fact layer for each action (accounting for delete effects). The ```calculate_heuristic``` function then calculates the fastforward (FF) heuristic for each child fact layer.
+
+If one of the possible next actions has a lower heuristic value than the incumbent (i.e. the lowest heuristic value found so far), the first action with a lower heuristic value is selected as the next action to take
+
+However, if at least one of the actions has the same heuristic value as the incumbent and none have a lower value, then a plateau has been reached and the ```resolve_plateau``` function (described below) is called to resolve the plateau by performing breadth-first search (BFS) to search through child states until a sequence of actions is found that has a lower heuristic value than the incumbent. The same ```expand_state``` function described above is used to identify children of each fact layer.
     
-3. The loop then returns to #1 above and the fact layer associated with the selected action is expanded and the process continues until the goal state is reached.
+The loop then returns to #1 above and the fact layer associated with the selected action is expanded and the process continues until the goal state is reached.
 
-*Plateau Resolution*
+### Calculating the FF Heuristic ###
 
-To resolve plateaus, the ```resolve_plateau``` function peforms breadth-first search (BFS) to search through child states until a sequence of actions is found that has a lower heuristic value than the incumbent. The same ```expand_state``` function described above is used to identify children of each fact layer. 
-
-*Calculating the FF Heuristic*
-
-```calculate_heuristic``` calculates the FF heuristic, which essentially is an estimate of how many more actions will be needed to reach the goal based on a relaxed plan graph (RPG). The 2 key components of this function are:
-1. ```compute_rpg``` computes the relaxed plan graph. Starting with a given current state, this function creates the next action layer by identifying the actions which have their preconditions satisfied by the preceding fact layer in the RPG. It then uses the actions in the action layer to determine all the new facts that are the effects of those actions in the action layer (ignoring delete effects of actions). We also carry over facts resulting from no-op from the previous fact layer. This process continues until the goal appears in the fact layer. To facilitate calculating the FF heuristic, at each fact layer, links are maintained between new facts in that layer (i.e. not facts that were carried over by the no-op) and the action in the preceding action layer that added that fact.
+```calculate_heuristic``` calculates the FF heuristic based on a relaxed plan graph (RPG) as follows:
+1. ```compute_rpg``` first computes the relaxed plan graph (RPG) by starting with a given current state and generating a sequence of alternating fact and action layers, ignoring the delete effects of actions. Betwen fact layers, we carry over facts resulting from no-op from the previous fact layer. To facilitate calculating the FF heuristic, at each fact layer, links are maintained between new facts (i.e. facts not carried over by the no-op) and the action that added that fact.
 2. ```extract_heuristic``` then takes the generated RPG and, starting from the final fact layer, uses the links between facts and actions to follow the RPG backwards from the final fact layer to the starting fact layer. Along the way, the actions that contributed to reaching the goal state are counted and the number of actions needed is returned as the heuristic value that informs the enforced hill climb algorithm described above.
 
 
