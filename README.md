@@ -213,7 +213,7 @@ $$
 $$
 
 ### Comparison of RRT-Generated v.s. Optimized Trajectories ###
-RRT-Generated Trajectory:
+<!-- RRT-Generated Trajectory:
 <img src="readme_material/unoptimized_trajectory.gif" width="900">
 Optimized Trajectory:
-<img src="readme_material/optimized_trajectory.gif" width="900">
+<img src="readme_material/optimized_trajectory.gif" width="900"> -->
