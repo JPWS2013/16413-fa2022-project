@@ -211,3 +211,9 @@ $$
 & \bigg | \frac{j_{i,t_{\lambda} - j_{i,t_{\lambda-1}}}}{t_{\lambda} - t_{\lambda-1}} \bigg | \leq 5.25, \; \forall \;\; i \; \in \; [4,7], \;  \lambda \; \in \; [0,len(t)]\\
 \end{align*}
 $$
+
+### Comparison of RRT-Generated v.s. Optimized Trajectories ###
+RRT-Generated Trajectory:
+<img src="readme_material/unoptimized_trajectory.gif" width="900">
+Optimized Trajectory:
+<img src="readme_material/optimized_trajectory.gif" width="900">
