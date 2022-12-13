@@ -28,8 +28,8 @@ Our implementation of activity planning makes the following assumptions:
 
 The key files in the ```ActivityPlanner``` folder are:
 1. ```kitchen.pddl```: Defines the kitchen domain including the main locations, objects and possible actions.
-2. ```pb1.pddl```: Defines the problem to be solved by the activity planner. including the initial and goal states.
-3. ```ff_planner.py```: Defines the functions needed to carry out activity planning.
+2. ```pb1.pddl```: Defines the problem to be solved by the activity planner, including the initial and goal states.
+3. ```ff_planner.py```: Defines the activity planning functions.
 
 
 ### Generating the Activity Plan ###
@@ -37,15 +37,15 @@ Our activity plan is generated using an enforced hill climb algorithm implemente
 
 If one of the possible next actions has a lower heuristic value than the incumbent, the first such action is selected.
 
-However, if none of the actions have a lower heuristic value than the incumbent, then a plateau has been reached and ```resolve_plateau``` resolves the plateau by performing breadth-first search (BFS) to search child states until a sequence of actions is found that has a lower heuristic value than the incumbent.
+However, if none of the actions have a lower heuristic value than the incumbent, then a plateau has been reached and ```resolve_plateau``` resolves the plateau by performing breadth-first search (BFS) to search child states until a sequence of actions is found that has a lower heuristic value.
 
 The fact layer associated with the selected action is then expanded and this process repeats until the goal state is reached.
 
 ### Calculating the FF Heuristic ###
 
 The FF heuristic is essentially an estimate of the number of actions remaining to reach the goal. ```calculate_heuristic``` calculates this heuristic based on a relaxed plan graph (RPG) as follows:
-1. ```compute_rpg``` computes the RPG by starting with a given current state and generating the sequence of alternating fact and action layers, ignoring the delete effects of actions. Between fact layers, we carry over facts resulting from no-op from the previous fact layer. To facilitate calculating the FF heuristic, links are maintained between each new fact (i.e. facts not carried over by the no-op) and the action that added that fact.
-2. ```extract_heuristic``` then takes the generated RPG and follows the links between fact and action layers backwards from the final fact layer to the starting fact layer, counting the actions needed along the way to achieve the goal state. The number of actions counted is returned as the heuristic value.
+1. ```compute_rpg``` computes the RPG by starting with a given current state and generating the sequence of alternating fact and action layers, ignoring delete effects of actions. Between fact layers, we carry over facts resulting from no-op from the previous fact layer. To facilitate calculating the FF heuristic, links are maintained between each new fact (i.e. facts not carried over by the no-op) and the action that added that fact.
+2. ```extract_heuristic``` then takes the generated RPG and follows the links between fact and action layers backwards from the final fact layer to the starting fact layer, counting the actions needed to achieve the goal state. The number of actions counted is returned as the heuristic value.
 
 
 ### Challenges Faced ###
@@ -108,7 +108,7 @@ The following key functions are used:
 
 ### Challenges Faced ###
 
-A key challenge was deciding what configuration space to plan the arm motions in. At first, we tried to plan in cartesian coordinates but struggled to convert joint angles into the resulting end effector pose. We ultimately decided it would be easier to plan in joint space instead. 
+A key challenge was deciding what configuration space to plan the arm motions in. At first, we tried to plan in cartesian coordinates but struggled to convert joint angles into end effector poses. We ultimately decided it would be easier to plan in joint space instead. 
 
 Another key challenge was figuring out how to perform efficient collision checking between robot links. We started by using pybullet's pairwise link collision checking but found that function to be very slow. Since our existing planner didn't seem to have much problem with the robot colliding into itself, we decided not to implement this aspect of collision checking.
 
@@ -133,19 +133,18 @@ $$
 \end{align*}
 $$
 
-The decision variables in the optimization problem are the angles of each arm joint at each time step. The decision variables are stored in the matrix $J_{i,t}$ where $j_{i,t}$ represents the joint angle of th $i$-th joint at the $t$-th timestep. Our cost function seeks to minimize the sum of all joint angle displacments over all joints and all timesteps. Fundementally, this means we are trying to minimize the distance all links in the arm move, and by extension, minimize the distance the end effecto needs to travel to reach its goal. 
+The decision variables in the optimization problem are the angles of each arm joint at each time step. The decision variables are stored in the matrix $J_{i,t}$ where $j_{i,t}$ represents the joint angle of th $i$-th joint at the $t$-th timestep. Our cost function seeks to minimize the sum of all joint angle displacements over all joints and all timesteps. Fundamentally, this means we are trying to minimize the distance all links in the arm move, and by extension, minimize the distance the end effector needs to travel to reach its goal. 
 
 We start by creating a constraint which limits each joint within its specified joint limits at each time step. We also express a constraint which limits each joint at the first and last timestep to its starting and ending positions respectively.
 
-We then express collision constraints to prevent the end effector from colliding with the robot base and kitchen cabinets. We do this using the function $f(j_{0:6,t})$ which we define as a forward kinematics function which returns the cartesian coordinates of the end effector at timestep $t$ from the joint angles $j_{0:6}$. Collisions are avoided by ensuring the end effector never enters the volumes that define the robot base and kitchen cabinets
+We then express collision constraints to prevent the end effector from colliding with the robot base and kitchen cabinets. We do this using the function $f(j_{0:6,t})$ which we define as a forward kinematics function which returns the cartesian coordinates of the end effector at timestep $t$ from the joint angles $j_{0:6}$. Collisions are avoided by ensuring the end effector never enters the volumes that represent the robot base and kitchen cabinets
 
 Finally, we express the constraints which limit the maximum angular speed to the [specified](https://www.generationrobots.com/en/403992-7-axis-franka-research-3-robotic-arm-fci-licence.html#spec) maximum joint speed. 
 
 While we included collision constraints in our formal problem definition, we chose not to implement them since our optimum plan does not contain collisions even without collision constraints.
 
 ### Key Files and Functions ###
-```traj_opti_solver.py``` implements the above problem formulation using pydrake's SNOPT solver. <br>
-```traj_opt_data.py``` saves the motion plan generated from our RRT planner and saves it in a CSV format. It then passes the start and end points of the RRT motion plan to the solver function which uses those points as its initial guess.
+```traj_opti_solver.py``` implements the above problem formulation using pydrake's SNOPT solver. It reads ```traj_opt_data.csv``` to obtain the start and end positions which it uses to set the start and end constraints.
 
 ### Comparison of RRT-Generated v.s. Optimized Trajectories ###
 
@@ -156,9 +155,9 @@ While we included collision constraints in our formal problem definition, we cho
 Upper: Unoptimized trajectory &nbsp;&nbsp;|| &nbsp;&nbsp; Lower: Optimized trajectory
 </p>
 
-It can be seen that the RRT-generated trajectory is not optimal because it contains several random, suboptimal movements of the arm. By contrast, the optimized trajectory essentially interpolates straight from the start to the goal points without those unecessary movements.
+It can be seen that the RRT-generated trajectory is suboptimal because it contains several random, unnecessary movements of the arm. By contrast, the optimized trajectory essentially interpolates straight from the start to goal points without those unecessary movements.
 
 ### Challenges Faced ###
-One challenge was figuring out how to implement the joint limit and max joint velocity constraints. We initially wanted to encode that as one constraint that checks the entire matrix of decision variables but realized pydrake does not allow constraints to be defined this way. Ultimately, we decided to implement these constraints separately for each joint.
+One challenge was determining how to implement the joint limit and max joint velocity constraints. We initially encoded each one as one constraint that checked the entire matrix of decision variables but realized pydrake does not allow constraints to be defined this way. Ultimately, we decided to implement these constraints separately for each joint.
 
-Another challenge was that implementing the max joint velocity constraint made the solver quite finicky. Although we found an example that the solver can solve, many other examples failed to solve. Passing an initial guess to the solver may have helped it find a solution more reliably but we did not have time to implement that successfully.
+Another challenge was that implementing the max joint velocity constraint made the solver quite finicky. Although we found an example that the solver could solve, many other examples failed to solve. Providing an initial guess might have helped the solver find a solution more reliably but we did not have time to implement that successfully.
