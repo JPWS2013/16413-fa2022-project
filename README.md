@@ -125,9 +125,9 @@ $$
 & (x_t \leq C_{lb_x}) \wedge (x_t\geq C_{ub_x}),\; (x_t, y_t, z_t) = f(j_{0:6,t}) \; \forall \;\; t  \; \in \; [t_o, t_f]\quad \text{(Constrains the end effector from entering the x-axis bounds of the cabinets.)}\\
 & (y_t \leq C_{lb_y}) \wedge (y_t\geq C_{ub_y}), \; (x_t, y_t, z_t) = f(j_{0:6,t}) \; \forall \;\; t  \; \in \; [t_o, t_f]\quad \text{(Constrains the end effector from entering the y-axis bounds of the cabinets.)}\\
 & (z_t \leq C_{lb_z}) \wedge (z_t\geq C_{ub_z}), \; (x_t, y_t, z_t) = f(j_{0:6,t}) \; \forall \;\; t  \; \in \; [t_o, t_f]\quad \text{(Constrains the end effector from entering the z-axis bounds of the cabinets.)}\\
-& B_{lb_x} \leq x_t \leq B_{ub_x}, \; (x_t, y_t, z_t) = f(j_{0:6,t}) \; \forall \;\; t  \; \in \; [t_o, t_f]\quad \text{(Constrains the end effector from entering the x-axis bounds of the base.)}\\
-& B_{lb_y} \leq y_t \leq B_{ub_y}, \; (x_t, y_t, z_t) = f(j_{0:6,t}) \; \forall \;\; t  \; \in \; [t_o, t_f]\quad \text{(Constrains the end effector from entering the y-axis bounds of the base.)}\\
-& B_{lb_z} \leq z_t \leq B_{ub_z}, \; (x_t, y_t, z_t) = f(j_{0:6,t}) \; \forall \;\; t  \; \in \; [t_o, t_f]\quad \text{(Constrains the end effector from entering the z-axis bounds of the base.)}\\
+& (x_t \leq B_{lb_x}) \wedge (x_t\geq B_{ub_x}), \; (x_t, y_t, z_t) = f(j_{0:6,t}) \; \forall \;\; t  \; \in \; [t_o, t_f]\quad \text{(Constrains the end effector from entering the x-axis bounds of the base.)}\\
+& (y_t \leq B_{lb_y}) \wedge (y_t\geq B_{ub_y}), \; (x_t, y_t, z_t) = f(j_{0:6,t}) \; \forall \;\; t  \; \in \; [t_o, t_f]\quad \text{(Constrains the end effector from entering the y-axis bounds of the base.)}\\
+& (z_t \leq B_{lb_z}) \wedge (z_t\geq B_{ub_z}), \; (x_t, y_t, z_t) = f(j_{0:6,t}) \; \forall \;\; t  \; \in \; [t_o, t_f]\quad \text{(Constrains the end effector from entering the z-axis bounds of the base.)}\\
 & \bigg | \frac{j_{i,t_{\lambda}} - j_{i,t_{\lambda-1}}}{t_{\lambda} - t_{\lambda-1}} \bigg | \leq 2.62, \; \forall \;\; i \; \in \; [0,3], \;  \lambda \; \in \; [0,len(t)]\quad \text{(Constrains the first four joints to their maximum angular velocity.)}\\
 & \bigg | \frac{j_{i,t_{\lambda}} - j_{i,t_{\lambda-1}}}{t_{\lambda} - t_{\lambda-1}} \bigg | \leq 5.25, \; \forall \;\; i \; \in \; [4,6], \;  \lambda \; \in \; [0,len(t)]\quad \text{(Constrains the last three joints to their maximum angular velocity.)}\\
 \end{align*}
