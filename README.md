@@ -150,10 +150,10 @@ While we included collision constraints in our formal problem definition, we cho
 ### Comparison of RRT-Generated v.s. Optimized Trajectories ###
 
 <p align=center>
-<img src="readme_material/unoptimized_trajectory.gif" width="450">
-<img src="readme_material/optimized_trajectory.gif" width="450">
+<img src="readme_material/unoptimized_trajectory.gif" width="500">
+<img src="readme_material/optimized_trajectory.gif" width="500">
 <br>
-Left: Unoptimized trajectory &nbsp;&nbsp;|| &nbsp;&nbsp; Right: Optimized trajectory
+Upper: Unoptimized trajectory &nbsp;&nbsp;|| &nbsp;&nbsp; Lower: Optimized trajectory
 </p>
 
 It can be seen that the RRT-generated trajectory is not optimal because it contains several random, suboptimal movements of the arm. By contrast, the optimized trajectory essentially interpolates straight from the start to the goal points without those unecessary movements.
