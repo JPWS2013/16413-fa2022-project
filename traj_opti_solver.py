@@ -180,7 +180,9 @@ def extract_path(sol_array):
     path = list()
 
     for joint_conf in sol_array.T:
-        path.append(tuple(joint_conf))
+        # If the next joint conf is not the same as the last joint conf added to the path, add it to the path
+        if (not path) or (tuple(joint_conf) != path[-1]):
+            path.append(tuple(joint_conf))
 
     return path
 
