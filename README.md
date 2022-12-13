@@ -118,7 +118,7 @@ Another key challenge was deciding how to perform efficient collision checking b
 
 $$
 \begin{align*}
-\text{minimize} \quad & \sum_{i,t} |j_{i+1,t}-j_{i,t}|, \forall i \in [0,5], t \in [t_o, t_f]\\
+\text{minimize} \quad & \sum_{i,t} |j_{i+1,t}-j_{i,t}|, \forall i \in [0,5], \forall t \in [t_o, t_f]\\
 \text{subject to} \quad & L_{lb_i} \leq j_{i,t} \leq L_{ub_i}, \forall i \in [0,6], t \in [t_o, t_f] \quad \text{(Constrains each joint within joint limits.)} \\
 & S_{lb_i} \leq j_{i,t_0} \leq S_{ub_i}, \forall i \in [0,6]\quad \text{(Constrains each joint within a start range.)}\\
 & E_{lb_i} \leq j_{i,t_f} \leq E_{ub_i}, \forall i \in [0,6]\quad \text{(Constrains each joint within an end range.)}\\
