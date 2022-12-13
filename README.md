@@ -139,9 +139,9 @@ We start by creating a constraint which limits each joint within its specified j
 
 We then express collision constraints to prevent the end effector from colliding with the robot base and kitchen cabinets. We do this using the function $f(j_{0:6,t})$ which we define as a forward kinematics function which returns the cartesian coordinates of the end effector at timestep $t$ from the joint angles $j_{0:6}$. Collisions are avoided by ensuring the end effector never enters the volumes that define the robot base and kitchen cabinets
 
-Finally, we express the constraints which limit the maximum angular displacment per timestep length to the [specified](https://www.generationrobots.com/en/403992-7-axis-franka-research-3-robotic-arm-fci-licence.html#spec) maximum joint angular velocity. 
+Finally, we express the constraints which limit the maximum angular speed to the [specified](https://www.generationrobots.com/en/403992-7-axis-franka-research-3-robotic-arm-fci-licence.html#spec) maximum joint speed. 
 
-While we included collision constraints in our formal problem definition, we chose not to include them in the code implementation to reduce complexity since our optimum plan does not contain collisions even without collision constraints.
+While we included collision constraints in our formal problem definition, we chose not to implement them since our optimum plan does not contain collisions even without collision constraints.
 
 ### Key Files and Functions ###
 ```traj_opti_solver.py``` implements the above problem formulation using pydrake's SNOPT solver. <br>
@@ -159,4 +159,6 @@ Upper: Unoptimized trajectory &nbsp;&nbsp;|| &nbsp;&nbsp; Lower: Optimized traje
 It can be seen that the RRT-generated trajectory is not optimal because it contains several random, suboptimal movements of the arm. By contrast, the optimized trajectory essentially interpolates straight from the start to the goal points without those unecessary movements.
 
 ### Challenges Faced ###
-One of the challenges was figuring out how to implement the joint limit and max joint velocity constraints. We initially wanted to encode that as one constraint that checks the entire matrix of decision variables but realized pydrake does not allow constraints to be defined this way. Ultimately, we decided to implement these constraints separately for each joint.
+One challenge was figuring out how to implement the joint limit and max joint velocity constraints. We initially wanted to encode that as one constraint that checks the entire matrix of decision variables but realized pydrake does not allow constraints to be defined this way. Ultimately, we decided to implement these constraints separately for each joint.
+
+Another challenge was that implementing the max joint velocity constraint made the solver quite finicky. Although we found an example that the solver can solve, many other examples failed to solve. Passing an initial guess to the solver may have helped it find a solution more reliably but we did not have time to implement that successfully.
