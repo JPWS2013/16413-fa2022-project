@@ -96,7 +96,7 @@ The following key functions are used:
     * <ins>For an open or close action</ins>, create a motion plan to 1) Move the arm to grasp the drawer handle, 2) Open or close the drawer and then 3) Move the arm away.
     * <ins>For a grip action</ins>, create a motion plan to move the arm into the required grasp pose, close the fingers, then move the arm (and object) to the park position.
     * <ins>For a placein or placeon action</ins>, calculate the final pose to place the object and create a motion plan to move the arm (and object) into that pose, release the object and park the arm.
-4. ```execute_action```: Once motion planning is complete, this function is called on each action in the activity plan to visualize the motion plans geneated by ```plan_action``` in the simulation. In addition, this function also creates and removes any necessary attachments of objects to the arm or to the drawer.
+4. ```execute_action```: Once motion planning is complete, this function is called on each action in the activity plan to visualize the motion plans geneated by ```plan_action``` in the simulation. In addition, this function also creates and removes any necessary attachments of objects to the arm or the drawer.
 
 ### GIF of Robot Executing the Plan ###
 
@@ -133,15 +133,15 @@ $$
 \end{align*}
 $$
 
-The decision variables in the optimization problem are the angles of each arm joint at each time step. The decision variables are stored in the matrix $J_{i,t}$ where $j_{i,t}$ represents the joint angle of th $i$-th joint at the $t$-th timestep. Our cost function seeks to minimize the sum of all joint angle displacements over all joints and all timesteps. Fundamentally, this means we are trying to minimize the distance all links in the arm move, and by extension, minimize the distance the end effector needs to travel to reach its goal. 
+The decision variables in the optimization problem are the angles of each arm joint at each time step. The decision variables are stored in the matrix $J_{i,t}$ where $j_{i,t}$ represents the joint angle of th $i$-th joint at the $t$-th timestep. Our cost function seeks to minimize the sum of all joint angle displacements over all joints and timesteps. Fundamentally, this means we are trying to minimize the distance all links in the arm move, and by extension, minimize the distance the end effector needs to travel to reach its goal. 
 
 We start by creating a constraint which limits each joint within its specified joint limits at each time step. We also express a constraint which limits each joint at the first and last timestep to its starting and ending positions respectively.
 
-We then express collision constraints to prevent the end effector from colliding with the robot base and kitchen cabinets. We do this using the function $f(j_{0:6,t})$ which we define as a forward kinematics function which returns the cartesian coordinates of the end effector at timestep $t$ from the joint angles $j_{0:6}$. Collisions are avoided by ensuring the end effector never enters the volumes that represent the robot base and kitchen cabinets
+We then express collision constraints to prevent the end effector from colliding with the robot base and kitchen cabinets. We do this using the function $f(j_{0:6,t})$ which we define as a forward kinematics function which returns the cartesian coordinates of the end effector at timestep $t$ from the joint angles $j_{0:6}$. Collisions are avoided by ensuring the end effector never enters the volumes representing the robot base and kitchen cabinets
 
 Finally, we express the constraints which limit the maximum angular speed to the [specified](https://www.generationrobots.com/en/403992-7-axis-franka-research-3-robotic-arm-fci-licence.html#spec) maximum joint speed. 
 
-While we included collision constraints in our formal problem definition, we chose not to implement them since our optimum plan does not contain collisions even without collision constraints.
+While we included collision constraints in our formal problem definition, we chose not to implement them to reduce complexity since our optimum plan does not contain collisions even without collision constraints.
 
 ### Key Files and Functions ###
 ```traj_opti_solver.py``` implements the above problem formulation using pydrake's SNOPT solver. It reads ```traj_opt_data.csv``` to obtain the start and end positions which it uses to set the start and end constraints.
