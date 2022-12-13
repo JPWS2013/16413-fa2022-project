@@ -50,7 +50,7 @@ The FF heuristic is essentially an estimate of the number of actions remaining t
 
 ### Challenges Faced ###
 
-The key challenge was that our FF heuristic planner was creating connections between facts that were carried over by the "no-op" and actions in the preceding action layer. As a result, our FF heuristic values were much larger than expected. By adding links only between new facts and actions, we were able to resolve this problem.
+A key challenge was that our FF heuristic planner was creating connections between facts that were carried over by the "no-op" and actions in the preceding action layer. As a result, our FF heuristic values were much larger than expected. By adding links only between new facts and actions, we were able to resolve this problem.
 
 ## Part 2: Motion Planning
 
@@ -110,7 +110,7 @@ The following key functions are used:
 
 A key challenge was deciding what configuration space to plan the arm motions in. At first, we tried to plan in cartesian coordinates but struggled to convert joint angles into end effector poses. We ultimately decided it would be easier to plan in joint space instead. 
 
-Another key challenge was figuring out how to perform efficient collision checking between robot links. We started by using pybullet's pairwise link collision checking but found that function to be very slow. Since our existing planner didn't seem to have much problem with the robot colliding into itself, we decided not to implement this aspect of collision checking.
+Another key challenge was deciding how to perform efficient collision checking between robot links. We started by using pybullet's pairwise link collision checking but found that function to be very slow. Since our existing planner didn't seem to have much problem with the robot colliding into itself, we decided not to implement this aspect of collision checking.
 
 ## Part 3: Trajectory Optimization
 
@@ -133,7 +133,7 @@ $$
 \end{align*}
 $$
 
-The decision variables in the optimization problem are the angles of each arm joint at each time step. The decision variables are stored in the matrix $J_{i,t}$ where $j_{i,t}$ represents the joint angle of th $i$-th joint at the $t$-th timestep. Our cost function seeks to minimize the sum of all joint angle displacements over all joints and timesteps. Fundamentally, this means we are trying to minimize the distance all links in the arm move, and by extension, minimize the distance the end effector needs to travel to reach its goal. 
+The decision variables in the optimization problem are the angles of each arm joint at each time step. The decision variables are stored in the matrix $J$ where $j_{i,t}$ represents the joint angle of th $i$-th joint at the $t$-th timestep. Our cost function seeks to minimize the sum of all joint angle displacements over all joints and timesteps. Fundamentally, this means we are trying to minimize the distance all links in the arm move, and by extension, minimize the distance the end effector needs to travel to reach its goal. 
 
 We start by creating a constraint which limits each joint within its specified joint limits at each time step. We also express a constraint which limits each joint at the first and last timestep to its starting and ending positions respectively.
 
