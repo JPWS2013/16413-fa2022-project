@@ -122,7 +122,7 @@ $$
 \text{subject to} \quad & L_{lb_i} \leq j_{i,t} \leq L_{ub_i}, \forall i \in [0,6], \forall t \in [t_o, t_f] \quad \text{(Constrains each joint within joint limits.)} \\
 & S_{lb_i} \leq j_{i,t_0} \leq S_{ub_i}, \forall i \in [0,6]\quad \text{(Constrains each joint within a start range.)}\\
 & E_{lb_i} \leq j_{i,t_f} \leq E_{ub_i}, \forall i \in [0,6]\quad \text{(Constrains each joint within an end range.)}\\
-& (x_t \leq C_{lb_x}) \vee (x_t\geq C_{ub_x}) (x_t, y_t, z_t) = f(j_{0:6,t}), \forall t  \in [t_o, t_f]\quad \text{(Constrains the end effector from entering the x-axis bounds of the cabinets.)}\\
+& (x_t \leq C_{lb_x}) \vee (x_t\geq C_{ub_x}), (x_t, y_t, z_t) = f(j_{0:6,t}), \forall t  \in [t_o, t_f]\quad \text{(Constrains the end effector from entering the x-axis bounds of the cabinets.)}\\
 & (y_t \leq C_{lb_y}) \vee (y_t\geq C_{ub_y}), (x_t, y_t, z_t) = f(j_{0:6,t}), \forall t  \in [t_o, t_f]\quad \text{(Constrains the end effector from entering the y-axis bounds of the cabinets.)}\\
 & (z_t \leq C_{lb_z}) \vee (z_t\geq C_{ub_z}), (x_t, y_t, z_t) = f(j_{0:6,t}), \forall t  \in [t_o, t_f]\quad \text{(Constrains the end effector from entering the z-axis bounds of the cabinets.)}\\
 & (x_t \leq B_{lb_x}) \vee (x_t\geq B_{ub_x}), (x_t, y_t, z_t) = f(j_{0:6,t}), \forall t  \in [t_o, t_f]\quad \text{(Constrains the end effector from entering the x-axis bounds of the base.)}\\
